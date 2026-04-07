@@ -5,7 +5,9 @@ import type {Browser} from 'puppeteer';
 import {config} from './config';
 import {parsePrice} from './price';
 import {logger} from './logger';
-import type {Labels, Store, Product} from './store/model';
+import type {Labels, Store, Product, CheckResult} from './store/model';
+
+export type {CheckResult};
 
 export class NotFoundError extends Error {
   constructor(url: string) {
@@ -13,11 +15,6 @@ export class NotFoundError extends Error {
     this.name = 'NotFoundError';
   }
 }
-
-export type CheckResult = {
-  inStock: boolean;
-  price: number | null;
-};
 
 // CSS selectors start with . # or [
 const CSS_SELECTOR_RE = /^[.#[]/;

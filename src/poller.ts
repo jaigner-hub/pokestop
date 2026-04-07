@@ -2,6 +2,7 @@ import type {Browser} from 'puppeteer';
 import type {Store} from './store/model';
 import {checkOnline, checkLocalStore, NotFoundError} from './checker';
 import {logCheck, logger, printSummary} from './logger';
+import {config} from './config';
 import type {Db} from './db';
 
 function getSleepTime(store: Store): number {
@@ -18,7 +19,10 @@ async function pollStore(
     // ── Online check ──────────────────────────────────────────────────────
     if (!skipped404.has(product.url)) {
       try {
-        const result = await checkOnline(store, product, browser);
+        // Prefer custom API-based check if the store provides one
+        const result = store.customCheck
+          ? await store.customCheck(product, undefined, config.zipCode ?? undefined)
+          : await checkOnline(store, product, browser);
         const record = {
           canonicalName: product.canonicalName,
           store: store.name,
@@ -45,19 +49,32 @@ async function pollStore(
     }
 
     // ── Local store checks ────────────────────────────────────────────────
-    if (store.supportsLocalStock && store.localStores.length > 0 && store.buildLocalUrl) {
+    if (store.supportsLocalStock && store.localStores.length > 0) {
       for (const localStore of store.localStores) {
-        const localUrl = store.buildLocalUrl(product, localStore.storeId);
-        if (skipped404.has(localUrl)) continue;
-
         try {
-          const result = await checkLocalStore(
-            product,
-            localStore.storeId,
-            store.buildLocalUrl,
-            store.labels,
-            store.headers
-          );
+          let result;
+          let localUrl: string;
+
+          if (store.customCheck) {
+            // API-based local check (e.g., Target Redsky per-store)
+            result = await store.customCheck(product, localStore.storeId, config.zipCode ?? undefined);
+            localUrl = store.buildLocalUrl
+              ? store.buildLocalUrl(product, localStore.storeId)
+              : product.url;
+          } else if (store.buildLocalUrl) {
+            localUrl = store.buildLocalUrl(product, localStore.storeId);
+            if (skipped404.has(localUrl)) continue;
+            result = await checkLocalStore(
+              product,
+              localStore.storeId,
+              store.buildLocalUrl,
+              store.labels,
+              store.headers
+            );
+          } else {
+            continue;
+          }
+
           const record = {
             canonicalName: product.canonicalName,
             store: store.name,
@@ -75,6 +92,9 @@ async function pollStore(
           }
           logCheck(record);
         } catch (err) {
+          const localUrl = store.buildLocalUrl
+            ? store.buildLocalUrl(product, localStore.storeId)
+            : product.url;
           if (err instanceof NotFoundError) {
             logger.warn(`[${store.name}] ${product.canonicalName} not found at ${localStore.name} (404) — skipping`);
             skipped404.add(localUrl);

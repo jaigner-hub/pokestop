@@ -33,6 +33,19 @@ export type LocalStoreLocation = {
   distanceMiles: number;
 };
 
+export type CheckResult = {
+  inStock: boolean;
+  price: number | null;
+};
+
+// Custom check function for stores that use APIs instead of HTML scraping.
+// When defined, the poller calls this instead of the generic HTML checker.
+export type CustomCheckFn = (
+  product: Product,
+  storeId?: string,    // undefined = online check; string = specific store location
+  zipCode?: string,
+) => Promise<CheckResult>;
+
 export type Store = {
   name: string;
   strategy: Strategy;
@@ -44,6 +57,7 @@ export type Store = {
   supportsLocalStock: boolean;
   localStores: LocalStoreLocation[];  // Populated at startup; empty array until resolved
   buildLocalUrl?: (product: Product, storeId: string) => string;
+  customCheck?: CustomCheckFn;  // API-based check (overrides HTML scraping)
 };
 
 export type PriceRecord = {

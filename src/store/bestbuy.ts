@@ -26,46 +26,65 @@ export const bestbuy: Store = {
   },
   buildLocalUrl,
   labels: {
-    container: '.shop-fulfillment-button-wrapper, .fulfillment-fulfillment-summary',
+    container: '.shop-fulfillment-button-wrapper, .fulfillment-fulfillment-summary, .shop-product-button',
     inStock: [
       '.add-to-cart-button:not([disabled])',
       'Add to Cart',
+      'Pickup',
     ],
     outOfStock: [
       'Sold Out',
       'Coming Soon',
       'Unavailable',
+      'Check Stores',
     ],
     price: '.priceView-customer-price span:first-child',
   },
   products: [
+    // ── Prismatic Evolutions ──
     {
       canonicalName: 'Prismatic Evolutions ETB',
-      name: 'Pokémon SV Prismatic Evolutions Elite Trainer Box',
+      name: 'Pokemon SV Prismatic Evolutions Elite Trainer Box',
       type: 'etb',
       set: 'Prismatic Evolutions',
       url: 'https://www.bestbuy.com/site/pokemon-trading-card-game-scarlet-violet-prismatic-evolutions-elite-trainer-box/6606082.p?skuId=6606082',
     },
     {
       canonicalName: 'Prismatic Evolutions Booster Bundle',
-      name: 'Pokémon SV Prismatic Evolutions Booster Bundle',
+      name: 'Pokemon SV Prismatic Evolutions Booster Bundle',
       type: 'bundle',
       set: 'Prismatic Evolutions',
       url: 'https://www.bestbuy.com/site/pokemon-trading-card-game-scarlet-violet-prismatic-evolutions-booster-bundle/6608206.p?skuId=6608206',
     },
+    // ── Surging Sparks ──
     {
       canonicalName: 'Surging Sparks Booster Box',
-      name: 'Pokémon SV Surging Sparks Booster Box (36 Packs)',
+      name: 'Pokemon SV Surging Sparks Booster Box (36 Packs)',
       type: 'booster-box',
       set: 'Surging Sparks',
       url: 'https://www.bestbuy.com/site/pokemon-trading-card-game-scarlet-violet-surging-sparks-booster-box-36-packs/6598558.p?skuId=6598558',
     },
     {
       canonicalName: 'Surging Sparks ETB',
-      name: 'Pokémon SV Surging Sparks Elite Trainer Box',
+      name: 'Pokemon SV Surging Sparks Elite Trainer Box',
       type: 'etb',
       set: 'Surging Sparks',
       url: 'https://www.bestbuy.com/site/pokemon-trading-card-game-scarlet-violet-surging-sparks-elite-trainer-box/6598557.p?skuId=6598557',
+    },
+    // ── Journey Together ──
+    {
+      canonicalName: 'Journey Together ETB',
+      name: 'Pokemon SV Journey Together Elite Trainer Box',
+      type: 'etb',
+      set: 'Journey Together',
+      url: 'https://www.bestbuy.com/site/pokemon-trading-card-game-scarlet-violet-journey-together-elite-trainer-box/6612547.p?skuId=6612547',
+    },
+    {
+      canonicalName: 'Journey Together Booster Bundle',
+      name: 'Pokemon SV Journey Together Booster Bundle',
+      type: 'bundle',
+      set: 'Journey Together',
+      url: 'https://www.bestbuy.com/site/pokemon-trading-card-game-scarlet-violet-journey-together-booster-bundle/6612548.p?skuId=6612548',
     },
   ],
 };
