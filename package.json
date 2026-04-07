@@ -1,0 +1,31 @@
+{
+  "name": "pokestop",
+  "version": "1.0.0",
+  "description": "Pokemon card product stock and price monitor",
+  "scripts": {
+    "start": "ts-node src/index.ts",
+    "build": "tsc",
+    "dev": "nodemon --exec 'ts-node src/index.ts' --ext ts",
+    "test": "mocha"
+  },
+  "dependencies": {
+    "better-sqlite3": "^9.4.3",
+    "chalk": "^4.1.2",
+    "cheerio": "^1.0.0",
+    "cli-table3": "^0.6.3",
+    "dotenv": "^16.4.5",
+    "node-fetch": "^2.7.0",
+    "puppeteer": "^22.0.0",
+    "winston": "^3.13.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.8",
+    "@types/mocha": "^10.0.6",
+    "@types/node": "^20.11.16",
+    "@types/node-fetch": "^2.6.11",
+    "mocha": "^10.3.0",
+    "nodemon": "^3.0.3",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  }
+}
