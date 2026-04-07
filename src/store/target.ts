@@ -30,7 +30,7 @@ export async function checkTargetFulfillment(
     params.set('pricing_store_id', storeId);
   }
 
-  const url = `https://redsky.target.com/redsky_aggregations/v1/web/pdp_fulfillment_v1?${params}`;
+  const url = `https://redsky.target.com/redsky_aggregations/v1/web/product_fulfillment_v1?${params}`;
   const res = await nodeFetch(url, {
     headers: {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',

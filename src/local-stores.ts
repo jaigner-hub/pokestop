@@ -9,29 +9,38 @@ const DEFAULT_HEADERS = {
 };
 
 async function fetchJson(url: string, headers = {}): Promise<unknown> {
-  const res = await nodeFetch(url, {headers: {...DEFAULT_HEADERS, ...headers}});
+  const res = await nodeFetch(url, {
+    headers: {...DEFAULT_HEADERS, ...headers},
+    timeout: 10000,  // 10s timeout — don't hang if API is unreachable
+  });
   if (!res.ok) throw new Error(`HTTP ${res.status}: ${url}`);
   return res.json();
 }
 
 // Target uses a public Redsky API key available in their web bundle.
-// Endpoint: https://redsky.target.com/v3/stores/nearby
-// Response shape: { locations: [{ location_id, city, state, address: { address_line1 }, distance }] }
+// Endpoint: https://redsky.target.com/redsky_aggregations/v1/web/nearby_stores_v1
+// Response: { data: { nearby_stores: { stores: [{ store_id, location_name, distance, mailing_address: {...} }] } } }
 async function findTargetStores(
   zipCode: string,
   count: number
 ): Promise<LocalStoreLocation[]> {
   const url =
-    `https://redsky.target.com/v3/stores/nearby` +
+    `https://redsky.target.com/redsky_aggregations/v1/web/nearby_stores_v1` +
     `?key=ff457966e64d5e877fdbad070f276d18ecec4a01` +
     `&place=${encodeURIComponent(zipCode)}&limit=${count}&within=50&unit=mile`;
-  const data = (await fetchJson(url)) as {locations?: Record<string, unknown>[]};
-  return (data.locations ?? []).slice(0, count).map((loc: Record<string, unknown>) => ({
-    storeId: String(loc['location_id']),
-    name: `Target - ${loc['city']}`,
-    address: `${(loc['address'] as Record<string, unknown>)?.['address_line1']}, ${loc['city']}, ${loc['state']}`,
-    distanceMiles: Number(loc['distance']),
-  }));
+  const data = (await fetchJson(url)) as {
+    data?: {nearby_stores?: {stores?: Record<string, unknown>[]}};
+  };
+  const stores = data?.data?.nearby_stores?.stores ?? [];
+  return stores.slice(0, count).map((s: Record<string, unknown>) => {
+    const addr = (s['mailing_address'] ?? {}) as Record<string, unknown>;
+    return {
+      storeId: String(s['store_id']),
+      name: `Target - ${s['location_name'] ?? addr['city']}`,
+      address: `${addr['address_line1']}, ${addr['city']}, ${addr['region']}`,
+      distanceMiles: Number(s['distance']),
+    };
+  });
 }
 
 // Best Buy store finder API. Returns nearby stores by postal code.
