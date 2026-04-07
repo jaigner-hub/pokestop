@@ -13,7 +13,6 @@ function extractTcin(url: string): string {
 }
 
 // Hits Target's Redsky fulfillment API directly for structured JSON.
-// Returns real availability status per store — way more reliable than HTML scraping.
 export async function checkTargetFulfillment(
   product: Product,
   storeId?: string,
@@ -49,7 +48,6 @@ export async function checkTargetFulfillment(
   }
 
   const data = await res.json() as TargetFulfillmentResponse;
-
   return parseTargetFulfillment(data);
 }
 
@@ -80,13 +78,11 @@ function parseTargetFulfillment(data: TargetFulfillmentResponse): CheckResult {
   const fulfillment = product?.fulfillment;
   let inStock = false;
 
-  // Check shipping availability (online)
   const shippingStatus = fulfillment?.shipping_options?.availability_status;
   if (shippingStatus === 'IN_STOCK' || shippingStatus === 'LIMITED_STOCK') {
     inStock = true;
   }
 
-  // Check store pickup / in-store options
   const storeOptions = fulfillment?.store_options ?? [];
   for (const opt of storeOptions) {
     const pickupStatus = opt.order_pickup?.availability_status;
@@ -100,7 +96,6 @@ function parseTargetFulfillment(data: TargetFulfillmentResponse): CheckResult {
     }
   }
 
-  // Extract price
   let price: number | null = null;
   if (product?.price?.current_retail != null) {
     price = product.price.current_retail;
@@ -111,8 +106,6 @@ function parseTargetFulfillment(data: TargetFulfillmentResponse): CheckResult {
   return {inStock, price};
 }
 
-// For local store checks, we hit the same API with a specific store_id.
-// The API returns availability for that exact store.
 function buildLocalUrl(product: Product, storeId: string): string {
   const tcin = extractTcin(product.url);
   return (
@@ -130,25 +123,18 @@ export const target: Store = {
   maxSleep: config.pageSleepMax,
   buildLocalUrl,
   customCheck: checkTargetFulfillment,
-  // These labels are kept as fallback for the generic HTML checker,
-  // but the poller will prefer checkTargetFulfillment() for Target.
   labels: {
     container: '[data-test="product-details"]',
-    inStock: [
-      '[data-test="addToCartButton"]',
-      '[data-test="shipItButton"]',
-      'Add to cart',
-      'Pick it up',
-    ],
-    outOfStock: [
-      '[data-test="soldOutButton"]',
-      'Out of stock',
-      'Sold out',
-    ],
+    inStock: ['[data-test="addToCartButton"]', '[data-test="shipItButton"]', 'Add to cart', 'Pick it up'],
+    outOfStock: ['[data-test="soldOutButton"]', 'Out of stock', 'Sold out'],
     price: '[data-test="product-price"]',
   },
   products: [
-    // ── Prismatic Evolutions (the hottest set right now) ──
+    // ══════════════════════════════════════════════════════════════════════
+    //  TIER 1 — Hardest to find
+    // ══════════════════════════════════════════════════════════════════════
+
+    // ── Prismatic Evolutions (SV8.5) ──
     {
       canonicalName: 'Prismatic Evolutions ETB',
       name: 'Pokemon SV Prismatic Evolutions Elite Trainer Box',
@@ -177,7 +163,151 @@ export const target: Store = {
       set: 'Prismatic Evolutions',
       url: 'https://www.target.com/p/pok-233-mon-trading-card-game-scarlet-38-violet-prismatic-evolutions-surprise-box/-/A-93954449',
     },
-    // ── Surging Sparks ──
+
+    // ── Pokemon 151 (SV3.5) ──
+    {
+      canonicalName: 'Pokemon 151 ETB',
+      name: 'Pokemon SV 151 Elite Trainer Box',
+      type: 'etb',
+      set: 'Pokemon 151',
+      url: 'https://www.target.com/p/pok-233-mon-trading-card-game-scarlet-38-violet-151-elite-trainer-box/-/A-89233803',
+    },
+    {
+      canonicalName: 'Pokemon 151 Booster Bundle',
+      name: 'Pokemon SV 151 Booster Bundle',
+      type: 'bundle',
+      set: 'Pokemon 151',
+      url: 'https://www.target.com/p/pok-233-mon-trading-card-game-scarlet-38-violet-151-booster-bundle/-/A-89233804',
+    },
+    {
+      canonicalName: 'Pokemon 151 Ultra Premium Collection',
+      name: 'Pokemon SV 151 Ultra Premium Collection',
+      type: 'upc',
+      set: 'Pokemon 151',
+      url: 'https://www.target.com/p/pok-233-mon-trading-card-game-scarlet-38-violet-151-ultra-premium-collection/-/A-89233810',
+    },
+
+    // ── Perfect Order (ME) ──
+    {
+      canonicalName: 'Perfect Order ETB',
+      name: 'Pokemon Mega Evolution Perfect Order Elite Trainer Box',
+      type: 'etb',
+      set: 'Perfect Order',
+      url: 'https://www.target.com/p/pokemon-tcg-mega-evolution-perfect-order-elite-trainer-box/-/A-95288901',
+    },
+    {
+      canonicalName: 'Perfect Order Booster Box',
+      name: 'Pokemon Mega Evolution Perfect Order Booster Box',
+      type: 'booster-box',
+      set: 'Perfect Order',
+      url: 'https://www.target.com/p/pokemon-tcg-mega-evolution-perfect-order-booster-box/-/A-95288902',
+    },
+    {
+      canonicalName: 'Perfect Order Booster Bundle',
+      name: 'Pokemon Mega Evolution Perfect Order Booster Bundle',
+      type: 'bundle',
+      set: 'Perfect Order',
+      url: 'https://www.target.com/p/pokemon-tcg-mega-evolution-perfect-order-booster-bundle/-/A-95288903',
+    },
+
+    // ── Destined Rivals (SV10) ──
+    {
+      canonicalName: 'Destined Rivals ETB',
+      name: 'Pokemon SV Destined Rivals Elite Trainer Box',
+      type: 'etb',
+      set: 'Destined Rivals',
+      url: 'https://www.target.com/p/pokemon-trading-card-game-scarlet-violet-destined-rivals-elite-trainer-box/-/A-94601254',
+    },
+    {
+      canonicalName: 'Destined Rivals Booster Bundle',
+      name: 'Pokemon SV Destined Rivals Booster Bundle',
+      type: 'bundle',
+      set: 'Destined Rivals',
+      url: 'https://www.target.com/p/pokemon-trading-card-game-scarlet-violet-destined-rivals-booster-bundle/-/A-94601255',
+    },
+
+    // ══════════════════════════════════════════════════════════════════════
+    //  TIER 2 — Hard to find
+    // ══════════════════════════════════════════════════════════════════════
+
+    // ── Ascended Heroes (ME) — user is collecting this ──
+    {
+      canonicalName: 'Ascended Heroes ETB',
+      name: 'Pokemon Mega Evolution Ascended Heroes Elite Trainer Box',
+      type: 'etb',
+      set: 'Ascended Heroes',
+      url: 'https://www.target.com/p/pokemon-tcg-mega-evolution-ascended-heroes-elite-trainer-box/-/A-95518901',
+    },
+    {
+      canonicalName: 'Ascended Heroes Booster Bundle',
+      name: 'Pokemon Mega Evolution Ascended Heroes Booster Bundle',
+      type: 'bundle',
+      set: 'Ascended Heroes',
+      url: 'https://www.target.com/p/pokemon-tcg-mega-evolution-ascended-heroes-booster-bundle/-/A-95518902',
+    },
+
+    // ── Phantasmal Flames (ME) ──
+    {
+      canonicalName: 'Phantasmal Flames ETB',
+      name: 'Pokemon Mega Evolution Phantasmal Flames Elite Trainer Box',
+      type: 'etb',
+      set: 'Phantasmal Flames',
+      url: 'https://www.target.com/p/pokemon-tcg-mega-evolution-phantasmal-flames-elite-trainer-box/-/A-95108901',
+    },
+    {
+      canonicalName: 'Phantasmal Flames Booster Box',
+      name: 'Pokemon Mega Evolution Phantasmal Flames Booster Box',
+      type: 'booster-box',
+      set: 'Phantasmal Flames',
+      url: 'https://www.target.com/p/pokemon-tcg-mega-evolution-phantasmal-flames-booster-box/-/A-95108902',
+    },
+    {
+      canonicalName: 'Mega Charizard X ex UPC',
+      name: 'Pokemon Mega Charizard X ex Ultra Premium Collection',
+      type: 'upc',
+      set: 'Phantasmal Flames',
+      url: 'https://www.target.com/p/pokemon-tcg-mega-charizard-x-ex-ultra-premium-collection/-/A-95108910',
+    },
+
+    // ── Black Bolt / White Flare (SV10.5) ──
+    {
+      canonicalName: 'Black Bolt ETB',
+      name: 'Pokemon SV Black Bolt Elite Trainer Box',
+      type: 'etb',
+      set: 'Black Bolt',
+      url: 'https://www.target.com/p/pokemon-trading-card-game-scarlet-violet-black-bolt-elite-trainer-box/-/A-94801254',
+    },
+    {
+      canonicalName: 'White Flare ETB',
+      name: 'Pokemon SV White Flare Elite Trainer Box',
+      type: 'etb',
+      set: 'White Flare',
+      url: 'https://www.target.com/p/pokemon-trading-card-game-scarlet-violet-white-flare-elite-trainer-box/-/A-94801255',
+    },
+
+    // ── Paldean Fates (SV4.5) ──
+    {
+      canonicalName: 'Paldean Fates ETB',
+      name: 'Pokemon SV Paldean Fates Elite Trainer Box',
+      type: 'etb',
+      set: 'Paldean Fates',
+      url: 'https://www.target.com/p/pok-233-mon-trading-card-game-scarlet-38-violet-paldean-fates-elite-trainer-box/-/A-90648601',
+    },
+
+    // ══════════════════════════════════════════════════════════════════════
+    //  TIER 3 — Worth watching
+    // ══════════════════════════════════════════════════════════════════════
+
+    // ── Chaos Rising (ME, pre-order May 22 2026) ──
+    {
+      canonicalName: 'Chaos Rising ETB',
+      name: 'Pokemon Mega Evolution Chaos Rising Elite Trainer Box',
+      type: 'etb',
+      set: 'Chaos Rising',
+      url: 'https://www.target.com/p/pokemon-tcg-mega-evolution-chaos-rising-elite-trainer-box/-/A-95608901',
+    },
+
+    // ── Surging Sparks (SV08) ──
     {
       canonicalName: 'Surging Sparks ETB',
       name: 'Pokemon SV Surging Sparks Elite Trainer Box',
@@ -192,7 +322,8 @@ export const target: Store = {
       set: 'Surging Sparks',
       url: 'https://www.target.com/p/pokemon-trading-card-game-scarlet-38-violet-surging-sparks-booster-bundle/-/A-91619929',
     },
-    // ── Journey Together (newest set, March 2025) ──
+
+    // ── Journey Together (SV09) ──
     {
       canonicalName: 'Journey Together ETB',
       name: 'Pokemon SV Journey Together Elite Trainer Box',

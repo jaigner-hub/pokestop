@@ -6,7 +6,9 @@ export type ProductType =
   | 'tin'
   | 'blister'
   | 'collection-box'
-  | 'bundle';
+  | 'bundle'
+  | 'mini-tin'
+  | 'upc';
 
 export type Channel = 'online' | 'in-store';
 
