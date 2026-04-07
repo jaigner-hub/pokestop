@@ -91,7 +91,7 @@ export function startPolling(store: Store, db: Db, browser?: Browser): void {
   const skipped404 = new Set<string>();
 
   async function tryPollAndLoop(): Promise<void> {
-    logger.debug(`[${store.name}] Starting poll cycle`);
+    logger.info(`[${store.name}] Starting poll cycle (${store.products.length} products)`);
     try {
       await pollStore(store, db, browser, skipped404);
       printSummary(db.getBestPrices());
@@ -99,9 +99,12 @@ export function startPolling(store: Store, db: Db, browser?: Browser): void {
       logger.error(`[${store.name}] Unexpected error in poll cycle: ${err}`);
     }
     const sleepMs = getSleepTime(store);
-    logger.debug(`[${store.name}] Next poll in ${Math.round(sleepMs / 1000)}s`);
+    logger.info(`[${store.name}] Next poll in ${Math.round(sleepMs / 1000)}s`);
     setTimeout(() => void tryPollAndLoop(), sleepMs);
   }
 
-  setTimeout(() => void tryPollAndLoop(), getSleepTime(store));
+  // Start first poll quickly (1-3s jitter to stagger stores)
+  const initialDelay = 1000 + Math.random() * 2000;
+  logger.info(`[${store.name}] First poll in ${Math.round(initialDelay / 1000)}s`);
+  setTimeout(() => void tryPollAndLoop(), initialDelay);
 }
