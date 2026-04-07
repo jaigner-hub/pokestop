@@ -71,20 +71,42 @@ export const bestbuy: Store = {
       set: 'Surging Sparks',
       url: 'https://www.bestbuy.com/site/pokemon-trading-card-game-scarlet-violet-surging-sparks-elite-trainer-box/6598557.p?skuId=6598557',
     },
+    // ── Prismatic Evolutions (more SKUs) ──
+    {
+      canonicalName: 'Prismatic Evolutions Binder Collection',
+      name: 'Pokemon SV Prismatic Evolutions Binder Collection',
+      type: 'collection-box',
+      set: 'Prismatic Evolutions',
+      url: 'https://www.bestbuy.com/site/pokemon-trading-card-game-scarlet-violet-prismatic-evolutions-binder-collection/6606079.p?skuId=6606079',
+    },
+    {
+      canonicalName: 'Prismatic Evolutions Super Premium Collection',
+      name: 'Pokemon SV Prismatic Evolutions Super Premium Collection',
+      type: 'collection-box',
+      set: 'Prismatic Evolutions',
+      url: 'https://www.bestbuy.com/site/pokemon-trading-card-game-scarlet-violet-prismatic-evolutions-super-premium-collection/6621081.p?skuId=6621081',
+    },
     // ── Journey Together ──
     {
       canonicalName: 'Journey Together ETB',
       name: 'Pokemon SV Journey Together Elite Trainer Box',
       type: 'etb',
       set: 'Journey Together',
-      url: 'https://www.bestbuy.com/site/pokemon-trading-card-game-scarlet-violet-journey-together-elite-trainer-box/6612547.p?skuId=6612547',
+      url: 'https://www.bestbuy.com/site/pokemon-trading-card-game-scarlet-violet-journey-together-elite-trainer-box/6614267.p?skuId=6614267',
     },
     {
       canonicalName: 'Journey Together Booster Bundle',
       name: 'Pokemon SV Journey Together Booster Bundle',
       type: 'bundle',
       set: 'Journey Together',
-      url: 'https://www.bestbuy.com/site/pokemon-trading-card-game-scarlet-violet-journey-together-booster-bundle/6612548.p?skuId=6612548',
+      url: 'https://www.bestbuy.com/site/pokemon-trading-card-game-scarlet-violet-journey-together-booster-bundle-6-pk/6614264.p?skuId=6614264',
+    },
+    {
+      canonicalName: 'Journey Together Booster Box',
+      name: 'Pokemon SV Journey Together Booster Box (36 Packs)',
+      type: 'booster-box',
+      set: 'Journey Together',
+      url: 'https://www.bestbuy.com/site/pokemon-trading-card-game-scarlet-violet-journey-together-booster-box-36-packs/6614262.p?skuId=6614262',
     },
   ],
 };

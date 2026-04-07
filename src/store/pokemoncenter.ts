@@ -46,7 +46,14 @@ export const pokemoncenter: Store = {
       name: 'Journey Together Pokemon Center Elite Trainer Box',
       type: 'etb',
       set: 'Journey Together',
-      url: 'https://www.pokemoncenter.com/product/100-10404/pokemon-tcg-scarlet-and-violet-journey-together-pokemon-center-elite-trainer-box',
+      url: 'https://www.pokemoncenter.com/product/100-10356/pokemon-tcg-scarlet-and-violet-journey-together-pokemon-center-elite-trainer-box',
+    },
+    {
+      canonicalName: 'Journey Together Booster Bundle',
+      name: 'Journey Together Booster Bundle (6 Packs)',
+      type: 'bundle',
+      set: 'Journey Together',
+      url: 'https://www.pokemoncenter.com/product/100-10341/pokemon-tcg-scarlet-and-violet-journey-together-booster-bundle-6-packs',
     },
   ],
 };

@@ -61,20 +61,42 @@ export const amazon: Store = {
       set: 'Surging Sparks',
       url: 'https://www.amazon.com/dp/B0DDYXQCZ4',
     },
+    // ── Prismatic Evolutions (more SKUs) ──
+    {
+      canonicalName: 'Prismatic Evolutions Binder Collection',
+      name: 'Pokemon TCG: SV Prismatic Evolutions Binder Collection',
+      type: 'collection-box',
+      set: 'Prismatic Evolutions',
+      url: 'https://www.amazon.com/dp/B0DLQBQ1XB',
+    },
+    {
+      canonicalName: 'Prismatic Evolutions Accessory Pouch Collection',
+      name: 'Pokemon TCG: SV Prismatic Evolutions Accessory Pouch Special Collection',
+      type: 'collection-box',
+      set: 'Prismatic Evolutions',
+      url: 'https://www.amazon.com/dp/B0DLQMWC4H',
+    },
     // ── Journey Together ──
     {
       canonicalName: 'Journey Together ETB',
       name: 'Pokemon TCG: SV Journey Together Elite Trainer Box',
       type: 'etb',
       set: 'Journey Together',
-      url: 'https://www.amazon.com/dp/B0DT12WHCF',
+      url: 'https://www.amazon.com/dp/B0DSLY7DZZ',
     },
     {
       canonicalName: 'Journey Together Booster Bundle',
       name: 'Pokemon TCG: SV Journey Together Booster Bundle',
       type: 'bundle',
       set: 'Journey Together',
-      url: 'https://www.amazon.com/dp/B0DT141TM3',
+      url: 'https://www.amazon.com/dp/B0DSLXPCJW',
+    },
+    {
+      canonicalName: 'Journey Together Booster Box',
+      name: 'Pokemon TCG: SV Journey Together Booster Display Box (36 Packs)',
+      type: 'booster-box',
+      set: 'Journey Together',
+      url: 'https://www.amazon.com/dp/B0F1GXTFGL',
     },
   ],
 };
