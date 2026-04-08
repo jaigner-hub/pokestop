@@ -1,5 +1,8 @@
-import type {Store, Product} from './model';
+import nodeFetch from 'node-fetch';
+import type {Store, Product, CheckResult} from './model';
 import {config} from '../config';
+import {parsePrice} from '../price';
+import {logger} from '../logger';
 
 function extractSkuId(url: string): string {
   const match = url.match(/\/(\d+)\.p/);
@@ -12,15 +15,81 @@ function buildLocalUrl(product: Product, storeId: string): string {
   return `${product.url.split('?')[0]}?skuId=${skuId}&storeId=${storeId}`;
 }
 
+const USER_AGENTS = [
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+];
+
+// Best Buy Falcor "button state" API — returns stock status as JSON
+async function checkBestBuyApi(product: Product): Promise<CheckResult> {
+  const skuId = extractSkuId(product.url);
+  const paths = JSON.stringify([
+    ['shop', 'buttonstate', 'v5', 'item', 'skus', skuId,
+     'conditions', 'NONE', 'destinationZipCode', config.zipCode ?? '10001',
+     'storeId', ' ', 'context', 'cyp', 'addAll', 'false'],
+  ]);
+  const url = `https://www.bestbuy.com/api/tcfb/model.json?paths=${encodeURIComponent(paths)}&method=get`;
+
+  const ua = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
+  const res = await nodeFetch(url, {
+    headers: {
+      'User-Agent': ua,
+      'Accept': 'application/json',
+      'Accept-Language': 'en-US,en;q=0.9',
+    },
+    timeout: config.pageTimeout,
+  });
+
+  if (!res.ok) {
+    throw new Error(`Best Buy API HTTP ${res.status} for SKU ${skuId}`);
+  }
+
+  const body = await res.text();
+
+  // Try structured JSON parse first
+  try {
+    const json = JSON.parse(body);
+    const skus = json?.jsonGraph?.shop?.buttonstate?.v5?.item?.skus;
+    if (skus) {
+      const skuData = skus[skuId];
+      const infos = skuData?.buttonStateResponseInfos ?? skuData?.conditions?.NONE?.destinationZipCode?.[config.zipCode ?? '10001']?.storeId?.[' ']?.context?.cyp?.addAll?.false?.buttonStateResponseInfos;
+      if (infos && infos.length > 0) {
+        const info = infos[0];
+        const buttonState: string = info.buttonState ?? info?.value?.buttonState ?? '';
+        const inStock = buttonState === 'ADD_TO_CART' || buttonState === 'PRE_ORDER';
+        logger.debug(`[bestbuy] SKU ${skuId} buttonState=${buttonState}`);
+        return {inStock, price: null};
+      }
+    }
+  } catch {
+    // JSON parse failed, try string matching
+  }
+
+  // Fallback: search raw response for buttonState strings
+  const inStock = body.includes('"ADD_TO_CART"') || body.includes('"PRE_ORDER"');
+  const soldOut = body.includes('"SOLD_OUT"') || body.includes('"COMING_SOON"');
+  if (inStock || soldOut) {
+    return {inStock, price: null};
+  }
+
+  // Try to extract price from response
+  const priceMatch = body.match(/"currentPrice":([\d.]+)/);
+  const price = priceMatch ? parsePrice(priceMatch[1]) : null;
+
+  logger.warn(`[bestbuy] Could not parse buttonState for SKU ${skuId}, treating as out of stock`);
+  return {inStock: false, price};
+}
+
 export const bestbuy: Store = {
   name: 'bestbuy',
-  strategy: 'puppeteer',
+  strategy: 'custom',
   supportsLocalStock: true,
   localStores: [],
   minSleep: config.pageSleepMin,
   maxSleep: config.pageSleepMax,
   headers: {'Accept-Language': 'en-US,en;q=0.9'},
   buildLocalUrl,
+  customChecker: checkBestBuyApi,
   labels: {
     container: '.shop-fulfillment-button-wrapper, .fulfillment-fulfillment-summary, .shop-product-button',
     inStock: ['.add-to-cart-button:not([disabled])', 'Add to Cart', 'Pickup'],

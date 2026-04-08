@@ -1,4 +1,16 @@
-export type Strategy = 'fetch' | 'puppeteer';
+import type {Browser} from 'puppeteer';
+
+export type Strategy = 'fetch' | 'puppeteer' | 'custom';
+
+export type CheckResult = {
+  inStock: boolean;
+  price: number | null;
+};
+
+export type CustomChecker = (
+  product: Product,
+  browser?: Browser
+) => Promise<CheckResult>;
 
 export type ProductType =
   | 'booster-box'

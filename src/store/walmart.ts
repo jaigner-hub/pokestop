@@ -112,7 +112,7 @@ function extractFromHtml(html: string): CheckResult {
 
 export const walmart: Store = {
   name: 'walmart',
-  strategy: 'puppeteer',
+  strategy: 'custom',
   supportsLocalStock: true,
   localStores: [],
   minSleep: config.pageSleepMin,

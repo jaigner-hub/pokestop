@@ -62,8 +62,32 @@ function detectStockAndPrice(html: string, labels: Labels): CheckResult {
 
 function extractPrice($: CheerioAPI, selector?: string): number | null {
   if (!selector) return null;
-  const text = $(selector).first().text().trim();
-  return parsePrice(text);
+
+  // Try each comma-separated selector individually
+  for (const sel of selector.split(',').map(s => s.trim())) {
+    try {
+      const el = $(sel).first();
+      if (el.length > 0) {
+        const price = parsePrice(el.text().trim());
+        if (price !== null) return price;
+        // Check content attribute (used by some stores for structured data)
+        const content = el.attr('content');
+        if (content) {
+          const price2 = parsePrice(content);
+          if (price2 !== null) return price2;
+        }
+      }
+    } catch {
+      // Invalid selector, try next
+    }
+  }
+
+  // Fallback: scan the page body for the first dollar amount
+  const bodyText = $('body').text();
+  const match = bodyText.match(/\$(\d{1,3}(?:,\d{3})*(?:\.\d{2}))/);
+  if (match) return parsePrice(match[0]);
+
+  return null;
 }
 
 const USER_AGENTS = [
@@ -151,6 +175,9 @@ export async function checkOnline(
   product: Product,
   browser?: Browser
 ): Promise<CheckResult> {
+  if (store.strategy === 'custom' && store.customChecker) {
+    return store.customChecker(product, browser);
+  }
   if (store.strategy === 'puppeteer') {
     if (!browser) throw new Error(`Browser required for store: ${store.name}`);
     return checkWithPuppeteer(browser, product.url, store.labels);
