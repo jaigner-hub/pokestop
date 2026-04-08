@@ -48,8 +48,8 @@ async function pollStore(
           logger.warn(`[${store.name}] ${product.canonicalName} not found (404) — skipping for session`);
           skipped404.add(product.url);
         } else if (err instanceof RateLimitError) {
-          logger.warn(`[${store.name}] Rate limited — pausing 60s before continuing`);
-          await new Promise(r => setTimeout(r, 60000));
+          logger.warn(`[${store.name}] Rate limited — skipping rest of cycle, will retry next round`);
+          return; // Bail out of entire cycle, don't try more products
         } else {
           logger.error(`[${store.name}] Error checking ${product.canonicalName} online: ${err}`);
         }
@@ -109,8 +109,8 @@ async function pollStore(
             logger.warn(`[${store.name}] ${product.canonicalName} not found at ${localStore.name} (404) — skipping`);
             skipped404.add(localUrl);
           } else if (err instanceof RateLimitError) {
-            logger.warn(`[${store.name}] Rate limited — pausing 60s before continuing`);
-            await new Promise(r => setTimeout(r, 60000));
+            logger.warn(`[${store.name}] Rate limited — skipping rest of cycle`);
+            return;
           } else {
             logger.error(`[${store.name}] Error checking ${product.canonicalName} at ${localStore.name}: ${err}`);
           }
