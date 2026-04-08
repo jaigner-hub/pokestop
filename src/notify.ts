@@ -28,14 +28,31 @@ export async function sendDiscordAlert(record: PriceRecord): Promise<void> {
     ? record.storeLocation ?? 'in-store'
     : 'Online';
 
-  const priceStr = record.price != null
-    ? `$${record.price.toFixed(2)}`
-    : 'Price unavailable';
-
   const storeUpper = record.store.charAt(0).toUpperCase() + record.store.slice(1);
 
-  // Color: green for in-stock with price, yellow for in-stock without price
-  const color = record.price != null ? 0x00ff00 : 0xffaa00;
+  let priceStr: string;
+  let color: number;
+
+  if (record.price != null) {
+    priceStr = `$${record.price.toFixed(2)}`;
+    // Rough MSRP check for Discord embed color
+    const name = record.canonicalName.toLowerCase();
+    let msrp = 49.99;
+    if (name.includes('booster box') || name.includes('display')) msrp = 143.64;
+    else if (name.includes('bundle')) msrp = 26.99;
+    else if (name.includes('upc') || name.includes('ultra premium')) msrp = 119.99;
+
+    if (record.price <= msrp * 1.2) {
+      color = 0x00ff00; // Green = retail price, GO GO GO
+      priceStr += ' ✅ MSRP';
+    } else {
+      color = 0xff6600; // Orange = 3rd party markup
+      priceStr += ` ⚠️ 3P (MSRP ~$${msrp.toFixed(2)})`;
+    }
+  } else {
+    priceStr = 'Price unavailable';
+    color = 0xffaa00;
+  }
 
   const embed = {
     title: `🟢 IN STOCK: ${record.canonicalName}`,

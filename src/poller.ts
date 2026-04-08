@@ -1,5 +1,6 @@
 import type {Browser} from 'puppeteer';
 import type {Store} from './store/model';
+import {getMsrp} from './store/model';
 import {checkOnline, checkLocalStore, NotFoundError} from './checker';
 import {logCheck, logger, printSummary} from './logger';
 import {isNewInStock, sendDiscordAlert} from './notify';
@@ -38,7 +39,7 @@ async function pollStore(
         } catch (dbErr) {
           logger.error(`[${store.name}] DB write failed: ${dbErr}`);
         }
-        logCheck(record);
+        logCheck({...record, msrp: getMsrp(product)});
         if (isNewInStock(record)) {
           void sendDiscordAlert(record);
         }
@@ -94,7 +95,7 @@ async function pollStore(
           } catch (dbErr) {
             logger.error(`[${store.name}] DB write failed: ${dbErr}`);
           }
-          logCheck(record);
+          logCheck({...record, msrp: getMsrp(product)});
           if (isNewInStock(record)) {
             void sendDiscordAlert(record);
           }

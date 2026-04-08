@@ -22,25 +22,45 @@ export const logger = winston.createLogger({
   transports: [new winston.transports.Console()],
 });
 
-export function logCheck(record: PriceRecord): void {
+// Terminal hyperlink (works in iTerm2, Windows Terminal, most modern terminals)
+function link(text: string, url: string): string {
+  return `\x1b]8;;${url}\x1b\\${text}\x1b]8;;\x1b\\`;
+}
+
+export function logCheck(record: PriceRecord & {msrp?: number}): void {
   const status = record.inStock
     ? chalk.green('IN STOCK')
-    : chalk.red('OUT OF STOCK');
-  const priceStr = record.price != null
-    ? chalk.yellow(`$${record.price.toFixed(2)}`)
-    : chalk.gray('(no price)');
+    : chalk.red('OUT');
   const loc =
     record.channel === 'in-store'
       ? record.storeLocation ?? 'in-store'
       : 'online';
-  logger.info(`[${record.store}] ${record.canonicalName} @ ${loc} — ${status} ${priceStr}`);
+
+  // Only log in-stock at info level; out-of-stock goes to debug
+  if (!record.inStock) {
+    logger.debug(`[${record.store}] ${record.canonicalName} @ ${loc} — ${status}`);
+    return;
+  }
+
+  let priceStr: string;
+  if (record.price != null) {
+    const priceText = `$${record.price.toFixed(2)}`;
+    if (record.msrp && record.price > record.msrp * 1.2) {
+      // Scalper price — flag it
+      priceStr = chalk.red(`${priceText} (3P - MSRP $${record.msrp.toFixed(2)})`);
+    } else {
+      priceStr = chalk.green(priceText);
+    }
+  } else {
+    priceStr = chalk.gray('(no price)');
+  }
+
+  const linkedName = link(record.canonicalName, record.url);
+  logger.info(`[${record.store}] ${linkedName} @ ${loc} — ${status} ${priceStr}`);
 }
 
 export function printSummary(rows: PriceRow[]): void {
-  if (rows.length === 0) {
-    logger.info('No in-stock items found in last check cycle.');
-    return;
-  }
+  if (rows.length === 0) return;
 
   const table = new Table({
     head: [
@@ -48,30 +68,59 @@ export function printSummary(rows: PriceRow[]): void {
       chalk.cyan('Store'),
       chalk.cyan('Location'),
       chalk.cyan('Price'),
-      chalk.cyan('Stock'),
-      chalk.cyan('Checked'),
+      chalk.cyan('MSRP?'),
+      chalk.cyan('Link'),
     ],
     style: {head: [], border: []},
+    colWidths: [38, 10, 12, 10, 7, 30],
+    wordWrap: true,
   });
 
   for (const r of rows) {
+    const priceStr = r.price != null ? `$${r.price.toFixed(2)}` : chalk.gray('—');
+
+    // Determine if retail or scalper
+    let msrpFlag = '';
+    if (r.price != null) {
+      // We don't have the product type in PriceRow, so use a simple heuristic:
+      // ETBs are ~$50, bundles ~$27, boxes ~$144, UPCs ~$120
+      // If price > 2x typical MSRP for the cheapest type ($27), flag it
+      const name = r.canonicalName.toLowerCase();
+      let expectedMsrp = 49.99;
+      if (name.includes('booster box') || name.includes('display')) expectedMsrp = 143.64;
+      else if (name.includes('bundle')) expectedMsrp = 26.99;
+      else if (name.includes('upc') || name.includes('ultra premium')) expectedMsrp = 119.99;
+      else if (name.includes('binder') || name.includes('collection') || name.includes('super premium')) expectedMsrp = 49.99;
+
+      if (r.price <= expectedMsrp * 1.2) {
+        msrpFlag = chalk.green('MSRP');
+      } else {
+        msrpFlag = chalk.red('3P');
+      }
+    }
+
+    // Shorten URL for table display
+    const shortUrl = r.url
+      .replace('https://www.', '')
+      .replace('https://', '')
+      .substring(0, 28);
+
     table.push([
       r.canonicalName,
       r.store,
       r.storeLocation ?? r.channel,
-      r.price != null ? `$${r.price.toFixed(2)}` : chalk.gray('—'),
-      r.inStock ? chalk.green('✓') : chalk.red('✗'),
-      r.checkedAt.substring(11, 19),
+      priceStr,
+      msrpFlag,
+      link(shortUrl, r.url),
     ]);
   }
 
   console.log('\n' + table.toString());
 
-  // Best prices footer
+  // Best prices footer — only show MSRP/retail prices
   const withPrice = rows.filter(r => r.price != null);
   const noPrice = rows.filter(r => r.price == null);
 
-  // Lowest price per canonicalName
   const bestMap = new Map<string, PriceRow>();
   for (const r of withPrice) {
     const existing = bestMap.get(r.canonicalName);
@@ -87,8 +136,21 @@ export function printSummary(rows: PriceRow[]): void {
         r.storeLocation
           ? `${r.storeLocation} (in-store)`
           : `${r.store} online`;
+      const priceText = `$${r.price!.toFixed(2)}`;
+
+      // Flag scalper prices in the best-price list too
+      const name = r.canonicalName.toLowerCase();
+      let expectedMsrp = 49.99;
+      if (name.includes('booster box') || name.includes('display')) expectedMsrp = 143.64;
+      else if (name.includes('bundle')) expectedMsrp = 26.99;
+      else if (name.includes('upc') || name.includes('ultra premium')) expectedMsrp = 119.99;
+
+      const tag = r.price! <= expectedMsrp * 1.2
+        ? chalk.green('MSRP')
+        : chalk.red('3P');
+
       console.log(
-        `  ${r.canonicalName.padEnd(40)} → ${loc} @ $${r.price!.toFixed(2)}`
+        `  ${r.canonicalName.padEnd(40)} → ${loc} @ ${priceText} [${tag}]`
       );
     }
   }

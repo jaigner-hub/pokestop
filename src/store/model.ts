@@ -19,7 +19,31 @@ export type Product = {
   set?: string;          // e.g. "Prismatic Evolutions", "Surging Sparks"
   url: string;
   cartUrl?: string;
+  msrp?: number;         // Override per-product MSRP (otherwise uses type default)
 };
+
+// Default MSRP by product type
+export const DEFAULT_MSRP: Record<ProductType, number> = {
+  'etb': 49.99,
+  'booster-box': 143.64,
+  'bundle': 26.99,
+  'tin': 24.99,
+  'blister': 13.99,
+  'collection-box': 39.99,
+  'mini-tin': 8.99,
+  'upc': 119.99,
+};
+
+// Returns MSRP for a product (per-product override > type default)
+export function getMsrp(product: Product): number {
+  return product.msrp ?? DEFAULT_MSRP[product.type] ?? 49.99;
+}
+
+// Price is "retail" if within 20% of MSRP. Above that = 3rd party/scalper.
+export function isRetailPrice(price: number, product: Product): boolean {
+  const msrp = getMsrp(product);
+  return price <= msrp * 1.2;
+}
 
 export type Labels = {
   container?: string;    // CSS selector to scope all searches (default: 'body')
