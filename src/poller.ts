@@ -3,7 +3,7 @@ import type {Store} from './store/model';
 import {getMsrp} from './store/model';
 import {checkOnline, checkLocalStore, NotFoundError} from './checker';
 import {logCheck, logger, printSummary} from './logger';
-import {isNewInStock, sendDiscordAlert} from './notify';
+import {isNewInStock, sendDiscordAlert, peekFirstSeen} from './notify';
 import {config} from './config';
 import type {Db} from './db';
 
@@ -21,7 +21,6 @@ async function pollStore(
     // ── Online check ──────────────────────────────────────────────────────
     if (!skipped404.has(product.url)) {
       try {
-        // Prefer custom API-based check if the store provides one
         const result = store.customCheck
           ? await store.customCheck(product, undefined, config.zipCode ?? undefined)
           : await checkOnline(store, product, browser);
@@ -39,7 +38,7 @@ async function pollStore(
         } catch (dbErr) {
           logger.error(`[${store.name}] DB write failed: ${dbErr}`);
         }
-        logCheck({...record, msrp: getMsrp(product)});
+        logCheck({...record, msrp: getMsrp(product), firstSeen: peekFirstSeen(record)});
         if (isNewInStock(record)) {
           void sendDiscordAlert(record);
         }
@@ -61,7 +60,6 @@ async function pollStore(
           let localUrl: string;
 
           if (store.customCheck) {
-            // API-based local check (e.g., Target Redsky per-store)
             result = await store.customCheck(product, localStore.storeId, config.zipCode ?? undefined);
             localUrl = store.buildLocalUrl
               ? store.buildLocalUrl(product, localStore.storeId)
@@ -95,7 +93,7 @@ async function pollStore(
           } catch (dbErr) {
             logger.error(`[${store.name}] DB write failed: ${dbErr}`);
           }
-          logCheck({...record, msrp: getMsrp(product)});
+          logCheck({...record, msrp: getMsrp(product), firstSeen: peekFirstSeen(record)});
           if (isNewInStock(record)) {
             void sendDiscordAlert(record);
           }
@@ -122,7 +120,6 @@ export function startPolling(store: Store, db: Db, browser?: Browser): void {
     logger.debug(`[${store.name}] Starting poll cycle`);
     try {
       await pollStore(store, db, browser, skipped404);
-      printSummary(db.getBestPrices());
     } catch (err) {
       logger.error(`[${store.name}] Unexpected error in poll cycle: ${err}`);
     }
@@ -132,4 +129,40 @@ export function startPolling(store: Store, db: Db, browser?: Browser): void {
   }
 
   setTimeout(() => void tryPollAndLoop(), getSleepTime(store));
+}
+
+// Consolidated summary: prints once every interval instead of per-store.
+// Call this from index.ts after starting all polling loops.
+export function startSummaryPrinter(db: Db, intervalMs = 60000): void {
+  async function printLoop(): Promise<void> {
+    const rows = db.getBestPrices();
+    // Only show MSRP/retail hits prominently; 3P gets a condensed count
+    const retailRows = rows.filter(r => {
+      if (r.price == null) return true; // Show price-unknown in-stock items
+      const name = r.canonicalName.toLowerCase();
+      let msrp = 49.99;
+      if (name.includes('booster box') || name.includes('display')) msrp = 143.64;
+      else if (name.includes('bundle')) msrp = 26.99;
+      else if (name.includes('upc') || name.includes('ultra premium')) msrp = 119.99;
+      return r.price <= msrp * 1.2;
+    });
+    const scalperCount = rows.length - retailRows.length;
+
+    if (retailRows.length > 0) {
+      printSummary(retailRows);
+    }
+    if (scalperCount > 0) {
+      logger.info(`(${scalperCount} additional 3P/scalper listings hidden — set LOG_LEVEL=debug to see all)`);
+    }
+    if (retailRows.length === 0 && scalperCount === 0) {
+      logger.info('No in-stock items found.');
+    } else if (retailRows.length === 0 && scalperCount > 0) {
+      logger.info(`No retail-price stock found. ${scalperCount} 3P listings only.`);
+    }
+
+    setTimeout(printLoop, intervalMs);
+  }
+
+  // First print after 30s (let initial polls complete), then every intervalMs
+  setTimeout(printLoop, 30000);
 }

@@ -31,6 +31,10 @@ async function checkWalmartProduct(
     redirect: 'follow',
   });
 
+  if (res.status === 404) {
+    const {NotFoundError} = require('../checker');
+    throw new NotFoundError(url);
+  }
   if (!res.ok) {
     throw new Error(`Walmart HTTP ${res.status}: ${url}`);
   }
@@ -318,20 +322,5 @@ export const walmart: Store = {
       url: 'https://www.walmart.com/ip/Pok-mon-Scarlet-Violet-Surging-Sparks-Elite-Trainer-Box/11478805541',
     },
 
-    // ── Journey Together (SV09) ──
-    {
-      canonicalName: 'Journey Together ETB',
-      name: 'Pokemon SV Journey Together Elite Trainer Box',
-      type: 'etb',
-      set: 'Journey Together',
-      url: 'https://www.walmart.com/ip/Pokemon-TCG-Scarlet-Violet-Journey-Together-Elite-Trainer-Box/5265736383',
-    },
-    {
-      canonicalName: 'Journey Together Booster Bundle',
-      name: 'Pokemon SV Journey Together Booster Bundle',
-      type: 'bundle',
-      set: 'Journey Together',
-      url: 'https://www.walmart.com/ip/Pokemon-TCG-Scarlet-Violet-Journey-Together-Booster-Bundle/5265736384',
-    },
   ],
 };

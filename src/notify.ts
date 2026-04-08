@@ -17,8 +17,20 @@ export function isNewInStock(record: PriceRecord): boolean {
   const wasInStock = lastStockState.get(key) ?? false;
   lastStockState.set(key, record.inStock);
 
-  // Only notify on the transition: was NOT in stock, now IS in stock
   return record.inStock && !wasInStock;
+}
+
+// Returns true if we've never seen this product/store/channel combo before.
+export function isFirstSeen(record: PriceRecord): boolean {
+  const key = stateKey(record);
+  // If the state was already set (even to false), it's not first seen
+  return !lastStockState.has(key);
+}
+
+// Peek at whether this is first seen WITHOUT updating state.
+// Call this BEFORE isNewInStock which sets state.
+export function peekFirstSeen(record: PriceRecord): boolean {
+  return !lastStockState.has(stateKey(record));
 }
 
 export async function sendDiscordAlert(record: PriceRecord): Promise<void> {

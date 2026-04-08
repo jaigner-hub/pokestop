@@ -27,7 +27,7 @@ function link(text: string, url: string): string {
   return `\x1b]8;;${url}\x1b\\${text}\x1b]8;;\x1b\\`;
 }
 
-export function logCheck(record: PriceRecord & {msrp?: number}): void {
+export function logCheck(record: PriceRecord & {msrp?: number; firstSeen?: boolean}): void {
   const status = record.inStock
     ? chalk.green('IN STOCK')
     : chalk.red('OUT');
@@ -43,11 +43,12 @@ export function logCheck(record: PriceRecord & {msrp?: number}): void {
   }
 
   let priceStr: string;
+  let isScalper = false;
   if (record.price != null) {
     const priceText = `$${record.price.toFixed(2)}`;
     if (record.msrp && record.price > record.msrp * 1.2) {
-      // Scalper price — flag it
       priceStr = chalk.red(`${priceText} (3P - MSRP $${record.msrp.toFixed(2)})`);
+      isScalper = true;
     } else {
       priceStr = chalk.green(priceText);
     }
@@ -56,7 +57,15 @@ export function logCheck(record: PriceRecord & {msrp?: number}): void {
   }
 
   const linkedName = link(record.canonicalName, record.url);
-  logger.info(`[${record.store}] ${linkedName} @ ${loc} — ${status} ${priceStr}`);
+  const msg = `[${record.store}] ${linkedName} @ ${loc} — ${status} ${priceStr}`;
+
+  // MSRP in-stock: always log at info — this is what the user cares about
+  // 3P/scalper: log at info on first detection, then debug on repeats
+  if (isScalper && !record.firstSeen) {
+    logger.debug(msg);
+  } else {
+    logger.info(msg);
+  }
 }
 
 export function printSummary(rows: PriceRow[]): void {

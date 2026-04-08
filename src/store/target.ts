@@ -40,6 +40,10 @@ export async function checkTargetFulfillment(
     },
   });
 
+  if (res.status === 404) {
+    const {NotFoundError} = require('../checker');
+    throw new NotFoundError(`https://www.target.com/p/-/A-${tcin}`);
+  }
   if (!res.ok) throw new Error(`Target Redsky API HTTP ${res.status} for TCIN ${tcin}`);
   const data = await res.json() as TargetFulfillmentResponse;
   return parseTargetFulfillment(data);
@@ -113,8 +117,6 @@ export const target: Store = {
     // ── Prismatic Evolutions (SV8.5) ──
     {canonicalName: 'Prismatic Evolutions ETB', name: 'Pokemon SV Prismatic Evolutions Elite Trainer Box', type: 'etb', set: 'Prismatic Evolutions', url: 'https://www.target.com/p/2024-pok-scarlet-violet-s8-5-elite-trainer-box/-/A-93954435'},
     {canonicalName: 'Prismatic Evolutions Booster Bundle', name: 'Pokemon SV Prismatic Evolutions Booster Bundle', type: 'bundle', set: 'Prismatic Evolutions', url: 'https://www.target.com/p/pok-233-mon-trading-card-game-scarlet-38-violet-prismatic-evolutions-booster-bundle/-/A-93954446'},
-    {canonicalName: 'Prismatic Evolutions Binder Collection', name: 'Pokemon SV Prismatic Evolutions Binder Collection', type: 'collection-box', set: 'Prismatic Evolutions', url: 'https://www.target.com/p/pok-233-mon-trading-card-game-scarlet-38-violet-prismatic-evolutions-binder-collection/-/A-93954437'},
-    {canonicalName: 'Prismatic Evolutions Surprise Box', name: 'Pokemon SV Prismatic Evolutions Surprise Box', type: 'collection-box', set: 'Prismatic Evolutions', url: 'https://www.target.com/p/pok-233-mon-trading-card-game-scarlet-38-violet-prismatic-evolutions-surprise-box/-/A-93954449'},
 
     // ── Pokemon 151 (SV3.5) ──
     {canonicalName: 'Pokemon 151 ETB', name: 'Pokemon SV 151 Elite Trainer Box', type: 'etb', set: 'Pokemon 151', url: 'https://www.target.com/p/pokemon-trading-card-game-scarlet-38-violet-151-elite-trainer-box/-/A-88897899'},
@@ -155,8 +157,5 @@ export const target: Store = {
     {canonicalName: 'Surging Sparks ETB', name: 'Pokemon SV Surging Sparks Elite Trainer Box', type: 'etb', set: 'Surging Sparks', url: 'https://www.target.com/p/pokemon-trading-card-game-scarlet-38-violet-surging-sparks-elite-trainer-box/-/A-91619922'},
     {canonicalName: 'Surging Sparks Booster Bundle', name: 'Pokemon SV Surging Sparks Booster Bundle', type: 'bundle', set: 'Surging Sparks', url: 'https://www.target.com/p/pokemon-trading-card-game-scarlet-38-violet-surging-sparks-booster-bundle/-/A-91619929'},
 
-    // ── Journey Together (SV09) ──
-    {canonicalName: 'Journey Together ETB', name: 'Pokemon SV Journey Together Elite Trainer Box', type: 'etb', set: 'Journey Together', url: 'https://www.target.com/p/pokemon-trading-card-game-scarlet-violet-journey-together-elite-trainer-box/-/A-94372863'},
-    {canonicalName: 'Journey Together Booster Bundle', name: 'Pokemon SV Journey Together Booster Bundle', type: 'bundle', set: 'Journey Together', url: 'https://www.target.com/p/pokemon-trading-card-game-scarlet-violet-journey-together-booster-bundle/-/A-94372864'},
   ],
 };

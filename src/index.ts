@@ -4,7 +4,7 @@ import {Db} from './db';
 import {getBrowser, closeBrowser} from './browser';
 import {resolveLocalStores} from './local-stores';
 import {filterProducts} from './filter';
-import {startPolling} from './poller';
+import {startPolling, startSummaryPrinter} from './poller';
 import {getActiveStores} from './store/index';
 import fs from 'fs';
 import path from 'path';
@@ -67,6 +67,9 @@ async function main(): Promise<void> {
   for (const store of activeStores) {
     startPolling(store, db, browser);
   }
+
+  // Print consolidated summary every 60s (not per-store)
+  startSummaryPrinter(db, 60000);
 
   // Graceful shutdown
   process.on('SIGINT', async () => {
