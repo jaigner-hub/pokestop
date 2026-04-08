@@ -126,7 +126,7 @@ function buildLocalUrl(product: Product, storeId: string): string {
 
 export const target: Store = {
   name: 'target',
-  strategy: 'fetch',
+  strategy: 'puppeteer',
   supportsLocalStock: true,
   localStores: [],
   minSleep: config.pageSleepMin * 3,  // Target rate-limits aggressively — poll every 30-60s

@@ -134,9 +134,11 @@ export async function checkWithPuppeteer(
   try {
     await page.setUserAgent(randomUserAgent());
     await page.goto(url, {
-      waitUntil: 'domcontentloaded',
+      waitUntil: 'networkidle2',
       timeout: config.pageTimeout,
     });
+    // Give JS frameworks a moment to finish rendering stock UI
+    await sleep(2000);
     const html = await page.content();
     return detectStockAndPrice(html, labels);
   } finally {

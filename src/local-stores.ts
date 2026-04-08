@@ -2,6 +2,8 @@ import nodeFetch from 'node-fetch';
 import {logger} from './logger';
 import type {LocalStoreLocation} from './store/model';
 
+const FETCH_TIMEOUT_MS = 15_000;
+
 const DEFAULT_HEADERS = {
   'User-Agent':
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
@@ -63,24 +65,27 @@ async function findBestBuyStores(
   }));
 }
 
-// Walmart store finder. Uses their internal store locator API.
-// Response shape varies — inspect network tab at walmart.com/store/finder for current shape.
+// Walmart store finder — Walmart's store-finder page is behind PerimeterX CAPTCHA
+// that blocks both fetch and headless browsers. Use WALMART_STORES env var instead.
+// Find store IDs from walmart.com/store/{id} URLs or your local store's page.
 async function findWalmartStores(
-  zipCode: string,
+  _zipCode: string,
   count: number
 ): Promise<LocalStoreLocation[]> {
-  const url =
-    `https://www.walmart.com/store/ajax/view` +
-    `?location=${encodeURIComponent(zipCode)}&count=${count}`;
-  const data = (await fetchJson(url, {Referer: 'https://www.walmart.com/'})) as {
-    payload?: {storesData?: {stores?: Record<string, unknown>[]}};
-  };
-  const stores = data?.payload?.storesData?.stores ?? [];
-  return stores.slice(0, count).map((s: Record<string, unknown>) => ({
-    storeId: String(s['id']),
-    name: `Walmart - ${s['displayName'] ?? s['city']}`,
-    address: `${(s['address'] as Record<string, unknown>)?.['streetAddress']}, ${(s['address'] as Record<string, unknown>)?.['city']}, ${(s['address'] as Record<string, unknown>)?.['state']}`,
-    distanceMiles: Number(s['distance']),
+  const envStores = process.env['WALMART_STORES'];
+  if (!envStores) {
+    logger.warn(
+      '[walmart] WALMART_STORES not set — local stock checks disabled. ' +
+      'Set WALMART_STORES=1234,5678 with your nearby store IDs (from walmart.com/store/{id}).'
+    );
+    return [];
+  }
+  const ids = envStores.split(',').map(s => s.trim()).filter(Boolean);
+  return ids.map(id => ({
+    storeId: id,
+    name: `Walmart #${id}`,
+    address: '',
+    distanceMiles: 0,
   }));
 }
 
@@ -97,7 +102,12 @@ async function findGameStopStores(
     `&dwfrm_storelocator_maxdistance=50` +
     `&dwfrm_storelocator_findbyzipcode=Find+Store`;
   // GameStop returns HTML; extract JSON from the storeLocatorData script tag.
-  const res = await nodeFetch(url, {headers: DEFAULT_HEADERS});
+  const gsController = new AbortController();
+  const gsTimer = setTimeout(() => gsController.abort(), FETCH_TIMEOUT_MS);
+  const res = await nodeFetch(url, {
+    headers: DEFAULT_HEADERS,
+    signal: gsController.signal as never,
+  }).finally(() => clearTimeout(gsTimer));
   if (!res.ok) throw new Error(`GameStop store finder HTTP ${res.status}`);
   const html = await res.text();
   const match = html.match(/window\.storeLocatorData\s*=\s*(\[.*?\]);/s);

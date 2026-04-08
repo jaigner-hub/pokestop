@@ -3,7 +3,7 @@ import {config} from '../config';
 
 export const amazon: Store = {
   name: 'amazon',
-  strategy: 'fetch',
+  strategy: 'puppeteer',
   supportsLocalStock: false,
   localStores: [],
   minSleep: config.pageSleepMin * 1.5,  // Amazon is aggressive with bot detection

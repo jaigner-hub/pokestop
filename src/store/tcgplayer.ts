@@ -3,7 +3,7 @@ import {config} from '../config';
 
 export const tcgplayer: Store = {
   name: 'tcgplayer',
-  strategy: 'fetch',
+  strategy: 'puppeteer',
   supportsLocalStock: false,
   localStores: [],
   minSleep: config.pageSleepMin,

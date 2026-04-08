@@ -14,7 +14,7 @@ function buildLocalUrl(product: Product, storeId: string): string {
 
 export const bestbuy: Store = {
   name: 'bestbuy',
-  strategy: 'fetch',
+  strategy: 'puppeteer',
   supportsLocalStock: true,
   localStores: [],
   minSleep: config.pageSleepMin,
