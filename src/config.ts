@@ -29,4 +29,5 @@ export const config = {
   pageTimeout: parseInt(optional('PAGE_TIMEOUT', '30000'), 10),
   dbPath: optional('DB_PATH', './data/prices.db'),
   logLevel: optional('LOG_LEVEL', 'info'),
+  discordWebhookUrl: process.env['DISCORD_WEBHOOK_URL'] || null,
 };

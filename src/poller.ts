@@ -2,6 +2,7 @@ import type {Browser} from 'puppeteer';
 import type {Store} from './store/model';
 import {checkOnline, checkLocalStore, NotFoundError} from './checker';
 import {logCheck, logger, printSummary} from './logger';
+import {isNewInStock, sendDiscordAlert} from './notify';
 import {config} from './config';
 import type {Db} from './db';
 
@@ -38,6 +39,9 @@ async function pollStore(
           logger.error(`[${store.name}] DB write failed: ${dbErr}`);
         }
         logCheck(record);
+        if (isNewInStock(record)) {
+          void sendDiscordAlert(record);
+        }
       } catch (err) {
         if (err instanceof NotFoundError) {
           logger.warn(`[${store.name}] ${product.canonicalName} not found (404) — skipping for session`);
@@ -91,6 +95,9 @@ async function pollStore(
             logger.error(`[${store.name}] DB write failed: ${dbErr}`);
           }
           logCheck(record);
+          if (isNewInStock(record)) {
+            void sendDiscordAlert(record);
+          }
         } catch (err) {
           const localUrl = store.buildLocalUrl
             ? store.buildLocalUrl(product, localStore.storeId)
