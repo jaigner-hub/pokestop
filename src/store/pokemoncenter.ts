@@ -151,7 +151,7 @@ export const pokemoncenter: Store = {
   localStores: [],
   minSleep: config.pageSleepMin * 2,
   maxSleep: config.pageSleepMax * 2,
-  customChecker: checkPokemonCenterPuppeteer,
+  customCheck: checkPokemonCenterPuppeteer,
   labels: {
     container: 'body',
     inStock: ['Add to Cart', 'Add to Bag', '.add-to-cart:not([disabled])'],

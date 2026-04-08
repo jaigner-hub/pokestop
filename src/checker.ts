@@ -175,8 +175,8 @@ export async function checkOnline(
   product: Product,
   browser?: Browser
 ): Promise<CheckResult> {
-  if (store.strategy === 'custom' && store.customChecker) {
-    return store.customChecker(product, browser);
+  if (store.strategy === 'custom' && store.customCheck) {
+    return store.customCheck(product, browser);
   }
   if (store.strategy === 'puppeteer') {
     if (!browser) throw new Error(`Browser required for store: ${store.name}`);

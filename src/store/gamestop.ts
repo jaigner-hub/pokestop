@@ -139,7 +139,7 @@ export const gamestop: Store = {
   minSleep: config.pageSleepMin * 1.5,
   maxSleep: config.pageSleepMax * 1.5,
   buildLocalUrl,
-  customChecker: checkGameStopPuppeteer,
+  customCheck: checkGameStopPuppeteer,
   labels: {
     container: 'body',
     inStock: ['Add to Cart', '.add-to-cart:not([disabled])', 'In Store Only', 'Buy Now'],

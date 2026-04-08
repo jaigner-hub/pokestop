@@ -89,7 +89,7 @@ export const bestbuy: Store = {
   maxSleep: config.pageSleepMax,
   headers: {'Accept-Language': 'en-US,en;q=0.9'},
   buildLocalUrl,
-  customChecker: checkBestBuyApi,
+  customCheck: checkBestBuyApi,
   labels: {
     container: '.shop-fulfillment-button-wrapper, .fulfillment-fulfillment-summary, .shop-product-button',
     inStock: ['.add-to-cart-button:not([disabled])', 'Add to Cart', 'Pickup'],

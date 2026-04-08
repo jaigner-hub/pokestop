@@ -2,16 +2,6 @@ import type {Browser} from 'puppeteer';
 
 export type Strategy = 'fetch' | 'puppeteer' | 'custom';
 
-export type CheckResult = {
-  inStock: boolean;
-  price: number | null;
-};
-
-export type CustomChecker = (
-  product: Product,
-  browser?: Browser
-) => Promise<CheckResult>;
-
 export type ProductType =
   | 'booster-box'
   | 'etb'
@@ -76,13 +66,12 @@ export type CheckResult = {
   price: number | null;
 };
 
-// Custom check function for stores that use APIs instead of HTML scraping.
+// Custom check function for stores that use APIs or Puppeteer directly.
 // When defined, the poller calls this instead of the generic HTML checker.
-export type CustomCheckFn = (
-  product: Product,
-  storeId?: string,    // undefined = online check; string = specific store location
-  zipCode?: string,
-) => Promise<CheckResult>;
+// Signature varies by store — API checks use (product, storeId?, zipCode?),
+// Puppeteer checks use (product, browser?). We use a loose type here.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type CustomCheckFn = (product: Product, ...args: any[]) => Promise<CheckResult>;
 
 export type Store = {
   name: string;
