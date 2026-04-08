@@ -1,5 +1,8 @@
-import type {Store, Product} from './model';
+import type {Browser} from 'puppeteer';
+import type {Store, Product, CheckResult} from './model';
 import {config} from '../config';
+import {parsePrice} from '../price';
+import {logger} from '../logger';
 
 function extractItemId(url: string): string {
   const match = url.match(/\/ip\/[^/]+\/(\d+)/);
@@ -12,9 +15,123 @@ function buildLocalUrl(product: Product, storeId: string): string {
   return `https://www.walmart.com/store/${storeId}/product/ip/${itemId}`;
 }
 
+// Intercept Walmart's own XHR responses during page load to get structured data
+async function checkWalmartPuppeteer(product: Product, browser?: Browser): Promise<CheckResult> {
+  if (!browser) throw new Error('Browser required for walmart');
+  const page = await browser.newPage();
+  try {
+    await page.setUserAgent(
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+    );
+
+    let apiData: Record<string, unknown> | null = null;
+
+    // Listen for XHR responses that contain product data
+    page.on('response', async (response) => {
+      const url = response.url();
+      if (apiData) return; // already captured
+      try {
+        if (url.includes('/terra-firma/') || url.includes('/orchestra/') || url.includes('/ip/api/')) {
+          const ct = response.headers()['content-type'] ?? '';
+          if (ct.includes('json')) {
+            const json = await response.json();
+            if (json && typeof json === 'object') {
+              apiData = json as Record<string, unknown>;
+            }
+          }
+        }
+      } catch {
+        // response may have been consumed or failed
+      }
+    });
+
+    await page.goto(product.url, {
+      waitUntil: 'networkidle2',
+      timeout: config.pageTimeout,
+    });
+
+    // Give extra time for XHR to complete
+    await new Promise(r => setTimeout(r, 3000));
+
+    // Try to parse intercepted API data
+    if (apiData) {
+      const result = parseWalmartApiData(apiData);
+      if (result) {
+        logger.debug(`[walmart] Got API data for ${product.canonicalName}: inStock=${result.inStock}`);
+        return result;
+      }
+    }
+
+    // Fallback: try __NEXT_DATA__ or initial state
+    const nextData = await page.evaluate(() => {
+      const el = document.querySelector('script#__NEXT_DATA__');
+      if (el) return el.textContent;
+      // Walmart also embeds state in window.__PRELOADED_STATE__
+      try {
+        return JSON.stringify((window as unknown as Record<string, unknown>).__PRELOADED_STATE__);
+      } catch { return null; }
+    });
+
+    if (nextData) {
+      try {
+        const json = JSON.parse(nextData);
+        const result = parseWalmartPageData(json);
+        if (result) return result;
+      } catch { /* parse failed */ }
+    }
+
+    // Last fallback: scrape the rendered page
+    const html = await page.content();
+    return parseWalmartHtml(html);
+  } finally {
+    await page.close();
+  }
+}
+
+function parseWalmartApiData(data: Record<string, unknown>): CheckResult | null {
+  const str = JSON.stringify(data);
+
+  // Look for availability status fields
+  const availMatch = str.match(/"availabilityStatus"\s*:\s*"([^"]+)"/);
+  const priceMatch = str.match(/"priceInfo"[^}]*"currentPrice"[^}]*"price"\s*:\s*([\d.]+)/);
+  const altPriceMatch = str.match(/"currentPrice"\s*:\s*([\d.]+)/);
+
+  if (availMatch) {
+    const status = availMatch[1];
+    const inStock = status === 'IN_STOCK' || status === 'AVAILABLE';
+    const price = parsePrice(priceMatch?.[1] ?? altPriceMatch?.[1] ?? null);
+    return {inStock, price};
+  }
+
+  // Look for add-to-cart eligibility
+  const cartMatch = str.match(/"canAddToCart"\s*:\s*(true|false)/);
+  if (cartMatch) {
+    const price = parsePrice(priceMatch?.[1] ?? altPriceMatch?.[1] ?? null);
+    return {inStock: cartMatch[1] === 'true', price};
+  }
+
+  return null;
+}
+
+function parseWalmartPageData(data: Record<string, unknown>): CheckResult | null {
+  const str = JSON.stringify(data);
+  return parseWalmartApiData(data) ?? parseWalmartApiData(JSON.parse(str));
+}
+
+function parseWalmartHtml(html: string): CheckResult {
+  const lc = html.toLowerCase();
+  const outOfStock = lc.includes('out of stock') || lc.includes('get in-stock alert');
+  const inStock = !outOfStock && (lc.includes('add to cart') || lc.includes('pick up today'));
+
+  const priceMatch = html.match(/\$([\d,]+\.\d{2})/);
+  const price = priceMatch ? parsePrice(priceMatch[0]) : null;
+
+  return {inStock, price};
+}
+
 export const walmart: Store = {
   name: 'walmart',
-  strategy: 'puppeteer',
+  strategy: 'custom',
   supportsLocalStock: true,
   localStores: [],
   minSleep: config.pageSleepMin,
@@ -23,6 +140,7 @@ export const walmart: Store = {
     'Accept-Language': 'en-US,en;q=0.9',
   },
   buildLocalUrl,
+  customChecker: checkWalmartPuppeteer,
   labels: {
     container: '[data-testid="product-listing"], [itemtype="http://schema.org/Product"]',
     inStock: [
@@ -35,7 +153,7 @@ export const walmart: Store = {
       'Get in-stock alert',
       'unavailable',
     ],
-    price: '[itemprop="price"], .price-characteristic',
+    price: '[itemprop="price"], .price-characteristic, [data-automation-id="product-price"], [data-testid="price-wrap"] span',
   },
   products: [
     {

@@ -18,7 +18,7 @@ export const tcgplayer: Store = {
       'Sold Out',
       'Out of Stock',
     ],
-    price: '.product-listing__price',
+    price: '.spotlight__price, .price-points__upper__price',
   },
   products: [
     {
