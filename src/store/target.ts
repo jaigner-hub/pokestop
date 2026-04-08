@@ -44,6 +44,12 @@ export async function checkTargetFulfillment(
     const {NotFoundError} = require('../checker');
     throw new NotFoundError(`https://www.target.com/p/-/A-${tcin}`);
   }
+  // 403 = rate limited. Throw NotFoundError so this product gets skipped
+  // for the session rather than retrying every cycle and spamming errors.
+  if (res.status === 403) {
+    const {NotFoundError} = require('../checker');
+    throw new NotFoundError(`https://www.target.com/p/-/A-${tcin}`);
+  }
   if (!res.ok) throw new Error(`Target Redsky API HTTP ${res.status} for TCIN ${tcin}`);
   const data = await res.json() as TargetFulfillmentResponse;
   return parseTargetFulfillment(data);
@@ -103,8 +109,8 @@ export const target: Store = {
   strategy: 'fetch',
   supportsLocalStock: true,
   localStores: [],
-  minSleep: config.pageSleepMin,
-  maxSleep: config.pageSleepMax,
+  minSleep: config.pageSleepMin * 3,  // Target rate-limits aggressively — poll every 30-60s
+  maxSleep: config.pageSleepMax * 3,
   buildLocalUrl,
   customCheck: checkTargetFulfillment,
   labels: {
