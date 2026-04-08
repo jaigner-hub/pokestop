@@ -3,7 +3,27 @@ import {config} from '../config';
 import nodeFetch from 'node-fetch';
 import {parsePrice} from '../price';
 
+export class RateLimitError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'RateLimitError';
+  }
+}
+
 const REDSKY_KEY = 'ff457966e64d5e877fdbad070f276d18ecec4a01';
+
+// Throttle Target API calls — they 403 if you burst >10 requests quickly
+const PER_REQUEST_DELAY_MS = 2000;
+let lastRequestTime = 0;
+
+async function throttle(): Promise<void> {
+  const now = Date.now();
+  const elapsed = now - lastRequestTime;
+  if (elapsed < PER_REQUEST_DELAY_MS) {
+    await new Promise(r => setTimeout(r, PER_REQUEST_DELAY_MS - elapsed));
+  }
+  lastRequestTime = Date.now();
+}
 
 function extractTcin(url: string): string {
   const match = url.match(/\/A-(\d+)/);
@@ -31,6 +51,9 @@ export async function checkTargetFulfillment(
   }
 
   const url = `https://redsky.target.com/redsky_aggregations/v1/web/product_fulfillment_v1?${params}`;
+
+  await throttle();
+
   const res = await nodeFetch(url, {
     headers: {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
@@ -44,11 +67,8 @@ export async function checkTargetFulfillment(
     const {NotFoundError} = require('../checker');
     throw new NotFoundError(`https://www.target.com/p/-/A-${tcin}`);
   }
-  // 403 = rate limited. Throw NotFoundError so this product gets skipped
-  // for the session rather than retrying every cycle and spamming errors.
-  if (res.status === 403) {
-    const {NotFoundError} = require('../checker');
-    throw new NotFoundError(`https://www.target.com/p/-/A-${tcin}`);
+  if (res.status === 403 || res.status === 429) {
+    throw new RateLimitError(`Target rate limited (${res.status}) for TCIN ${tcin}`);
   }
   if (!res.ok) throw new Error(`Target Redsky API HTTP ${res.status} for TCIN ${tcin}`);
   const data = await res.json() as TargetFulfillmentResponse;

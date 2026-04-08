@@ -2,6 +2,7 @@ import type {Browser} from 'puppeteer';
 import type {Store} from './store/model';
 import {getMsrp} from './store/model';
 import {checkOnline, checkLocalStore, NotFoundError} from './checker';
+import {RateLimitError} from './store/target';
 import {logCheck, logger, printSummary} from './logger';
 import {isNewInStock, sendDiscordAlert, peekFirstSeen} from './notify';
 import {config} from './config';
@@ -46,6 +47,9 @@ async function pollStore(
         if (err instanceof NotFoundError) {
           logger.warn(`[${store.name}] ${product.canonicalName} not found (404) — skipping for session`);
           skipped404.add(product.url);
+        } else if (err instanceof RateLimitError) {
+          logger.warn(`[${store.name}] Rate limited — pausing 60s before continuing`);
+          await new Promise(r => setTimeout(r, 60000));
         } else {
           logger.error(`[${store.name}] Error checking ${product.canonicalName} online: ${err}`);
         }
@@ -104,6 +108,9 @@ async function pollStore(
           if (err instanceof NotFoundError) {
             logger.warn(`[${store.name}] ${product.canonicalName} not found at ${localStore.name} (404) — skipping`);
             skipped404.add(localUrl);
+          } else if (err instanceof RateLimitError) {
+            logger.warn(`[${store.name}] Rate limited — pausing 60s before continuing`);
+            await new Promise(r => setTimeout(r, 60000));
           } else {
             logger.error(`[${store.name}] Error checking ${product.canonicalName} at ${localStore.name}: ${err}`);
           }
