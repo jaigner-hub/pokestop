@@ -14,7 +14,7 @@ function buildLocalUrl(product: Product, storeId: string): string {
 
 export const walmart: Store = {
   name: 'walmart',
-  strategy: 'fetch',
+  strategy: 'puppeteer',
   supportsLocalStock: true,
   localStores: [],
   minSleep: config.pageSleepMin,
@@ -65,6 +65,20 @@ export const walmart: Store = {
       type: 'etb',
       set: 'Surging Sparks',
       url: 'https://www.walmart.com/ip/Pok-mon-Scarlet-Violet-Surging-Sparks-Elite-Trainer-Box/11478805541',
+    },
+    {
+      canonicalName: 'Ascended Heroes ETB',
+      name: 'Pokémon Mega Evolution Ascended Heroes Elite Trainer Box',
+      type: 'etb',
+      set: 'Ascended Heroes',
+      url: 'https://www.walmart.com/ip/Pok-mon-Trading-Card-Game-Mega-Evolution-Ascended-Heroes-Elite-Trainer-Box/18710966734',
+    },
+    {
+      canonicalName: 'Black Bolt ETB',
+      name: 'Pokémon SV Black Bolt Elite Trainer Box',
+      type: 'etb',
+      set: 'Black Bolt',
+      url: 'https://www.walmart.com/ip/Pokemon-TCG-Scarlet-Violet-10-5-Black-Bolt-Elite-Trainer-Box-9-Packs-Promo-Card/16498668973',
     },
   ],
 };

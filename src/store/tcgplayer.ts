@@ -3,7 +3,7 @@ import {config} from '../config';
 
 export const tcgplayer: Store = {
   name: 'tcgplayer',
-  strategy: 'fetch',
+  strategy: 'puppeteer',
   supportsLocalStock: false,
   localStores: [],
   minSleep: config.pageSleepMin,
@@ -41,6 +41,20 @@ export const tcgplayer: Store = {
       type: 'etb',
       set: 'Surging Sparks',
       url: 'https://www.tcgplayer.com/product/565630/pokemon-sv08-surging-sparks-surging-sparks-elite-trainer-box',
+    },
+    {
+      canonicalName: 'Ascended Heroes ETB',
+      name: 'ME Ascended Heroes Elite Trainer Box',
+      type: 'etb',
+      set: 'Ascended Heroes',
+      url: 'https://www.tcgplayer.com/product/668496/pokemon-me-ascended-heroes-ascended-heroes-elite-trainer-box',
+    },
+    {
+      canonicalName: 'Black Bolt ETB',
+      name: 'SV Black Bolt Elite Trainer Box',
+      type: 'etb',
+      set: 'Black Bolt',
+      url: 'https://www.tcgplayer.com/product/630686/pokemon-sv-black-bolt-black-bolt-elite-trainer-box',
     },
   ],
 };

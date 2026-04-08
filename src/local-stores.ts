@@ -88,7 +88,7 @@ async function findWalmartStores(
     return [];
   }
   const ids = envStores.split(',').map(s => s.trim()).filter(Boolean);
-  return ids.slice(0, count).map(id => ({
+  return ids.map(id => ({
     storeId: id,
     name: `Walmart #${id}`,
     address: '',

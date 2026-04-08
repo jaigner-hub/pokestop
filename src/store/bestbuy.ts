@@ -16,7 +16,7 @@ function buildLocalUrl(product: Product, storeId: string): string {
 
 export const bestbuy: Store = {
   name: 'bestbuy',
-  strategy: 'fetch',
+  strategy: 'puppeteer',
   supportsLocalStock: true,
   localStores: [],
   minSleep: config.pageSleepMin,
@@ -66,6 +66,20 @@ export const bestbuy: Store = {
       type: 'etb',
       set: 'Surging Sparks',
       url: 'https://www.bestbuy.com/site/pokemon-trading-card-game-scarlet-violet-surging-sparks-elite-trainer-box/6598557.p?skuId=6598557',
+    },
+    {
+      canonicalName: 'Ascended Heroes ETB',
+      name: 'Pokémon Mega Evolution Ascended Heroes Elite Trainer Box',
+      type: 'etb',
+      set: 'Ascended Heroes',
+      url: 'https://www.bestbuy.com/site/pokemon-trading-card-game-mega-evolution-ascended-heroes-elite-trainer-box/12228720.p?skuId=12228720',
+    },
+    {
+      canonicalName: 'Black Bolt ETB',
+      name: 'Pokémon SV Black Bolt Elite Trainer Box',
+      type: 'etb',
+      set: 'Black Bolt',
+      url: 'https://www.bestbuy.com/site/pokemon-trading-card-game-scarlet-violet-black-bolt-elite-trainer-box/6632397.p?skuId=6632397',
     },
   ],
 };

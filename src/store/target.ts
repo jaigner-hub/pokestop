@@ -21,7 +21,7 @@ function buildLocalUrl(product: Product, storeId: string): string {
 
 export const target: Store = {
   name: 'target',
-  strategy: 'fetch',
+  strategy: 'puppeteer',
   supportsLocalStock: true,
   localStores: [],
   minSleep: config.pageSleepMin,
@@ -69,6 +69,20 @@ export const target: Store = {
       type: 'bundle',
       set: 'Surging Sparks',
       url: 'https://www.target.com/p/pokemon-trading-card-game-scarlet-38-violet-surging-sparks-booster-bundle/-/A-91619929',
+    },
+    {
+      canonicalName: 'Ascended Heroes ETB',
+      name: 'Pokémon Mega Evolution Ascended Heroes Elite Trainer Box',
+      type: 'etb',
+      set: 'Ascended Heroes',
+      url: 'https://www.target.com/p/2025-pok-me-2-5-elite-trainer-box/-/A-95082118',
+    },
+    {
+      canonicalName: 'Black Bolt ETB',
+      name: 'Pokémon SV Black Bolt Elite Trainer Box',
+      type: 'etb',
+      set: 'Black Bolt',
+      url: 'https://www.target.com/p/pok-233-mon-scarlet-violet-s10-5-elite-trainer-box-2-trading-cards/-/A-94636862',
     },
   ],
 };

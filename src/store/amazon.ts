@@ -3,7 +3,7 @@ import {config} from '../config';
 
 export const amazon: Store = {
   name: 'amazon',
-  strategy: 'fetch',
+  strategy: 'puppeteer',
   supportsLocalStock: false,
   localStores: [],
   minSleep: config.pageSleepMin,
@@ -53,6 +53,20 @@ export const amazon: Store = {
       type: 'etb',
       set: 'Surging Sparks',
       url: 'https://www.amazon.com/dp/B0DDYXQCZ4',
+    },
+    {
+      canonicalName: 'Ascended Heroes ETB',
+      name: 'Pokémon TCG: Mega Evolution Ascended Heroes Elite Trainer Box',
+      type: 'etb',
+      set: 'Ascended Heroes',
+      url: 'https://www.amazon.com/dp/B0G3CY83L5',
+    },
+    {
+      canonicalName: 'Black Bolt ETB',
+      name: 'Pokémon TCG: SV Black Bolt Elite Trainer Box',
+      type: 'etb',
+      set: 'Black Bolt',
+      url: 'https://www.amazon.com/dp/B0F6PTRKTH',
     },
   ],
 };

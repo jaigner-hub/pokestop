@@ -36,5 +36,19 @@ export const pokemoncenter: Store = {
       set: 'Surging Sparks',
       url: 'https://www.pokemoncenter.com/product/100-10307/pokemon-tcg-scarlet-and-violet-surging-sparks-pokemon-center-elite-trainer-box',
     },
+    {
+      canonicalName: 'Ascended Heroes ETB',
+      name: 'Ascended Heroes Pokemon Center Elite Trainer Box',
+      type: 'etb',
+      set: 'Ascended Heroes',
+      url: 'https://www.pokemoncenter.com/product/10-10315-108/pokemon-tcg-mega-evolution-ascended-heroes-pokemon-center-elite-trainer-box',
+    },
+    {
+      canonicalName: 'Black Bolt ETB',
+      name: 'Black Bolt Pokemon Center Elite Trainer Box',
+      type: 'etb',
+      set: 'Black Bolt',
+      url: 'https://www.pokemoncenter.com/product/10-10037-118/pokemon-tcg-scarlet-and-violet-black-bolt-pokemon-center-elite-trainer-box',
+    },
   ],
 };

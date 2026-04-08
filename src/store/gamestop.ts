@@ -9,7 +9,7 @@ function buildLocalUrl(product: Product, storeId: string): string {
 
 export const gamestop: Store = {
   name: 'gamestop',
-  strategy: 'fetch',
+  strategy: 'puppeteer',
   supportsLocalStock: true,
   localStores: [],
   minSleep: config.pageSleepMin,
@@ -57,6 +57,20 @@ export const gamestop: Store = {
       type: 'etb',
       set: 'Surging Sparks',
       url: 'https://www.gamestop.com/toys-games/trading-cards/products/pokemon-trading-card-game-scarlet-and-violet-surging-sparks-elite-trainer-box/20015259.html',
+    },
+    {
+      canonicalName: 'Ascended Heroes ETB',
+      name: 'Pokémon TCG Mega Evolution Ascended Heroes Elite Trainer Box',
+      type: 'etb',
+      set: 'Ascended Heroes',
+      url: 'https://www.gamestop.com/toys-games/trading-cards/products/pokemon-trading-card-game-ascended-heroes-elite-trainer-box/20030564.html',
+    },
+    {
+      canonicalName: 'Black Bolt ETB',
+      name: 'Pokémon TCG SV Black Bolt Elite Trainer Box',
+      type: 'etb',
+      set: 'Black Bolt',
+      url: 'https://www.gamestop.com/toys-games/trading-cards/products/pokemon-trading-card-game-black-bolt-elite-trainer-box/20021662.html',
     },
   ],
 };
