@@ -1,8 +1,8 @@
-import type {Browser} from 'puppeteer';
 import type {Store, Product, CheckResult} from './model';
 import {config} from '../config';
 import {parsePrice} from '../price';
 import {logger} from '../logger';
+import {getBrowser} from '../browser';
 
 // GameStop uses Cloudflare WAF + client-side React rendering.
 function buildLocalUrl(product: Product, storeId: string): string {
@@ -11,13 +11,11 @@ function buildLocalUrl(product: Product, storeId: string): string {
 }
 
 // Intercept GameStop's Demandware/SFCC XHR calls for structured product data
-async function checkGameStopPuppeteer(product: Product, browser?: Browser): Promise<CheckResult> {
-  if (!browser) throw new Error('Browser required for gamestop');
+async function checkGameStopPuppeteer(product: Product): Promise<CheckResult> {
+  const browser = await getBrowser();
   const page = await browser.newPage();
   try {
-    await page.setUserAgent(
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
-    );
+    // Do NOT override UA — let the real Chrome UA pass through.
 
     let apiData: Record<string, unknown> | null = null;
 
@@ -51,41 +49,121 @@ async function checkGameStopPuppeteer(product: Product, browser?: Browser): Prom
 
     await new Promise(r => setTimeout(r, 3000));
 
-    // Try intercepted API data
-    if (apiData) {
-      const result = parseGameStopApiData(apiData);
-      if (result) {
-        logger.debug(`[gamestop] Got API data for ${product.canonicalName}: inStock=${result.inStock}`);
-        return result;
-      }
-    }
+    // Grab page info for all extraction methods
+    const pageInfo = await page.evaluate(() => {
+      const body = document.body?.innerText ?? '';
+      const title = document.title;
+      const html = document.documentElement.outerHTML;
 
-    // Fallback: check for structured data in the page
-    const pageData = await page.evaluate(() => {
-      // GameStop sometimes embeds product data in a script tag
+      // LD+JSON
+      let ldJson: Record<string, unknown> | null = null;
       const scripts = document.querySelectorAll('script[type="application/ld+json"]');
       for (const script of scripts) {
         try {
           const data = JSON.parse(script.textContent ?? '');
-          if (data['@type'] === 'Product' || data.availability) {
-            return data;
+          if (data['@type'] === 'Product' || data.offers) {
+            ldJson = data;
+            break;
           }
         } catch { /* skip */ }
       }
-      return null;
+
+      return {body, title, html, ldJson};
     });
 
-    if (pageData) {
-      const result = parseLdJson(pageData);
-      if (result) return result;
+    // Check for Cloudflare / block page
+    const titleLc = pageInfo.title.toLowerCase();
+    if (titleLc.includes('just a moment') || titleLc.includes('attention required') || titleLc.includes('access denied')) {
+      logger.warn(`[gamestop] Blocked by Cloudflare on ${product.canonicalName}`);
+      return {inStock: false, price: null};
     }
 
-    // Last fallback: scrape rendered HTML
-    const html = await page.content();
-    return parseGameStopHtml(html);
+    // Try intercepted API data
+    if (apiData) {
+      const result = parseGameStopApiData(apiData);
+      if (result) {
+        logger.debug(`[gamestop] API data for ${product.canonicalName}: inStock=${result.inStock}, price=${result.price}`);
+        return result;
+      }
+    }
+
+    // Try LD+JSON
+    if (pageInfo.ldJson) {
+      const result = parseLdJson(pageInfo.ldJson);
+      if (result) {
+        logger.debug(`[gamestop] LD+JSON for ${product.canonicalName}: inStock=${result.inStock}, price=${result.price}`);
+        return result;
+      }
+    }
+
+    // Extract from rendered page text
+    const bodyText = pageInfo.body;
+    const lc = bodyText.toLowerCase();
+    const outOfStock = lc.includes('not available') || lc.includes('out of stock') || lc.includes('unavailable');
+    const inStock = !outOfStock && (lc.includes('add to cart') || lc.includes('in store only') || lc.includes('buy now'));
+
+    // Try multiple price patterns from the visible page text
+    let price: number | null = null;
+    const priceMatch = bodyText.match(/\$([\d,]+\.\d{2})/);
+    if (priceMatch) {
+      price = parseFloat(priceMatch[1].replace(',', ''));
+    }
+
+    // Also try extracting from raw HTML attributes (data-price, content="XX.XX")
+    if (price == null) {
+      const htmlPriceMatch = pageInfo.html.match(/(?:data-price|content)="([\d.]+)"/);
+      if (htmlPriceMatch) {
+        const p = parseFloat(htmlPriceMatch[1]);
+        if (p > 1) price = p;
+      }
+    }
+
+    // Log what we found for debugging
+    if (price == null) {
+      // Dump all dollar-sign occurrences and surrounding text
+      const allPrices: string[] = [];
+      let searchFrom = 0;
+      while (searchFrom < bodyText.length) {
+        const idx = bodyText.indexOf('$', searchFrom);
+        if (idx < 0) break;
+        allPrices.push(bodyText.substring(Math.max(0, idx - 20), idx + 20).replace(/\n/g, ' '));
+        searchFrom = idx + 1;
+        if (allPrices.length >= 5) break;
+      }
+      logger.warn(`[gamestop] No price for ${product.canonicalName}. $ occurrences: ${JSON.stringify(allPrices)}. Title: "${pageInfo.title}". Body length: ${bodyText.length}`);
+    }
+
+    return {inStock, price};
   } finally {
     await page.close();
   }
+}
+
+// Demandware/SFCC nests prices in several shapes. Try them all.
+function extractApiPrice(str: string): number | null {
+  const patterns = [
+    // Nested: "price":{"sales":{"value":54.99}}
+    /"sales"\s*:\s*\{[^}]*?"value"\s*:\s*([\d.]+)/,
+    /"price"\s*:\s*\{[^}]*?"value"\s*:\s*([\d.]+)/,
+    // Demandware "decimalPrice" string
+    /"decimalPrice"\s*:\s*"([\d.]+)"/,
+    // Quoted price: "price":"54.99"
+    /"price"\s*:\s*"([\d.]+)"/,
+    // Unquoted price: "price":54.99
+    /"price"\s*:\s*([\d.]+)/,
+    // Formatted: "formatted":"$54.99"
+    /"formatted"\s*:\s*"\$([\d,]+\.\d{2})"/,
+    // Generic salePrice / listPrice
+    /"(?:salePrice|listPrice)"\s*:\s*"?([\d.]+)"?/,
+  ];
+  for (const pat of patterns) {
+    const m = str.match(pat);
+    if (m) {
+      const p = parseFloat(m[1].replace(/,/g, ''));
+      if (p > 0) return p;
+    }
+  }
+  return null;
 }
 
 function parseGameStopApiData(data: Record<string, unknown>): CheckResult | null {
@@ -95,28 +173,31 @@ function parseGameStopApiData(data: Record<string, unknown>): CheckResult | null
   const availMatch = str.match(/"availability"\s*:\s*\{[^}]*"status"\s*:\s*"([^"]+)"/);
   const inStockMatch = str.match(/"inStock"\s*:\s*(true|false)/);
   const readyMatch = str.match(/"readyToOrder"\s*:\s*(true|false)/);
-  const priceMatch = str.match(/"price"\s*:\s*([\d.]+)/);
 
   if (availMatch) {
     const inStock = availMatch[1] === 'IN_STOCK' || availMatch[1] === 'AVAILABLE';
-    return {inStock, price: parsePrice(priceMatch?.[1] ?? null)};
+    return {inStock, price: extractApiPrice(str)};
   }
 
   if (inStockMatch || readyMatch) {
     const inStock = inStockMatch?.[1] === 'true' || readyMatch?.[1] === 'true';
-    return {inStock, price: parsePrice(priceMatch?.[1] ?? null)};
+    return {inStock, price: extractApiPrice(str)};
   }
 
   return null;
 }
 
 function parseLdJson(data: Record<string, unknown>): CheckResult | null {
-  const offers = data.offers as Record<string, unknown> | undefined;
+  let offers = data.offers as Record<string, unknown> | Record<string, unknown>[] | undefined;
+  if (!offers) return null;
+  if (Array.isArray(offers)) offers = offers[0];
   if (!offers) return null;
 
-  const availability = String(offers.availability ?? '');
+  const availability = String(offers['availability'] ?? '');
   const inStock = availability.includes('InStock') || availability.includes('PreOrder');
-  const price = parsePrice(String(offers.price ?? ''));
+  // AggregateOffer uses lowPrice; Offer uses price
+  const priceVal = offers['price'] ?? offers['lowPrice'];
+  const price = parsePrice(priceVal == null ? '' : String(priceVal));
   return {inStock, price};
 }
 

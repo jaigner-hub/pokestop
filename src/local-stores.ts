@@ -19,49 +19,49 @@ async function fetchJson(url: string, headers = {}): Promise<unknown> {
   return res.json();
 }
 
-// Target uses a public Redsky API key available in their web bundle.
-// Endpoint: https://redsky.target.com/redsky_aggregations/v1/web/nearby_stores_v1
-// Response: { data: { nearby_stores: { stores: [{ store_id, location_name, distance, mailing_address: {...} }] } } }
+// Target's Redsky store finder API is behind bot detection.
+// Use TARGET_STORES env var with store IDs (find them at target.com/sl/{city}/{id}).
 async function findTargetStores(
-  zipCode: string,
+  _zipCode: string,
   count: number
 ): Promise<LocalStoreLocation[]> {
-  const url =
-    `https://redsky.target.com/redsky_aggregations/v1/web/nearby_stores_v1` +
-    `?key=ff457966e64d5e877fdbad070f276d18ecec4a01` +
-    `&place=${encodeURIComponent(zipCode)}&limit=${count}&within=50&unit=mile`;
-  const data = (await fetchJson(url)) as {
-    data?: {nearby_stores?: {stores?: Record<string, unknown>[]}};
-  };
-  const stores = data?.data?.nearby_stores?.stores ?? [];
-  return stores.slice(0, count).map((s: Record<string, unknown>) => {
-    const addr = (s['mailing_address'] ?? {}) as Record<string, unknown>;
-    return {
-      storeId: String(s['store_id']),
-      name: `Target - ${s['location_name'] ?? addr['city']}`,
-      address: `${addr['address_line1']}, ${addr['city']}, ${addr['region']}`,
-      distanceMiles: Number(s['distance']),
-    };
-  });
+  const envStores = process.env['TARGET_STORES'];
+  if (!envStores) {
+    logger.warn(
+      '[target] TARGET_STORES not set — local stock checks disabled. ' +
+      'Set TARGET_STORES=1234,5678 with your nearby store IDs (from target.com/sl/{city}/{id}).'
+    );
+    return [];
+  }
+  const ids = envStores.split(',').map(s => s.trim()).filter(Boolean);
+  return ids.slice(0, count).map(id => ({
+    storeId: id,
+    name: `Target #${id}`,
+    address: '',
+    distanceMiles: 0,
+  }));
 }
 
-// Best Buy store finder API. Returns nearby stores by postal code.
-// Response shape: { stores: [{ storeId, city, state, address, distance }] }
+// Best Buy store finder API is behind bot detection.
+// Use BESTBUY_STORES env var with store IDs (from bestbuy.com/site/store-locator).
 async function findBestBuyStores(
-  zipCode: string,
+  _zipCode: string,
   count: number
 ): Promise<LocalStoreLocation[]> {
-  const url =
-    `https://www.bestbuy.com/api/v2/stores/nearby` +
-    `?postalCode=${encodeURIComponent(zipCode)}&count=${count}`;
-  const data = (await fetchJson(url, {Referer: 'https://www.bestbuy.com/'})) as {
-    stores?: Record<string, unknown>[];
-  };
-  return (data.stores ?? []).slice(0, count).map((s: Record<string, unknown>) => ({
-    storeId: String(s['storeId']),
-    name: `Best Buy - ${s['city']}`,
-    address: `${s['address']}, ${s['city']}, ${s['state']}`,
-    distanceMiles: Number(s['distance']),
+  const envStores = process.env['BESTBUY_STORES'];
+  if (!envStores) {
+    logger.warn(
+      '[bestbuy] BESTBUY_STORES not set — local stock checks disabled. ' +
+      'Set BESTBUY_STORES=1234,5678 with your nearby store IDs.'
+    );
+    return [];
+  }
+  const ids = envStores.split(',').map(s => s.trim()).filter(Boolean);
+  return ids.slice(0, count).map(id => ({
+    storeId: id,
+    name: `Best Buy #${id}`,
+    address: '',
+    distanceMiles: 0,
   }));
 }
 

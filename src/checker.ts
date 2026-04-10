@@ -156,7 +156,8 @@ export async function checkWithPuppeteer(
 ): Promise<CheckResult> {
   const page = await browser.newPage();
   try {
-    await page.setUserAgent(randomUserAgent());
+    // Don't override UA when connected to real Chrome — the mismatch
+    // between a real Chrome TLS fingerprint and a fake UA trips WAFs.
     await page.goto(url, {
       waitUntil: 'networkidle2',
       timeout: config.pageTimeout,

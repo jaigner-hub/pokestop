@@ -1,18 +1,98 @@
-import type {Store} from './model';
+import type {Store, Product, CheckResult} from './model';
+import {getMsrp} from './model';
 import {config} from '../config';
+import {parsePrice} from '../price';
+import {logger} from '../logger';
+import {getBrowser} from '../browser';
+
+// TCGPlayer is a marketplace — product pages show individual card listings
+// alongside the sealed product price.  The sealed price lives in the
+// "Market Price" / "Listed Median" area, not in the per-card listing rows.
+async function checkTcgPlayer(product: Product): Promise<CheckResult> {
+  const browser = await getBrowser();
+  const page = await browser.newPage();
+  try {
+    await page.goto(product.url, {
+      waitUntil: 'networkidle2',
+      timeout: config.pageTimeout,
+    });
+    await new Promise(r => setTimeout(r, 2000));
+
+    // Floor the fallback at 50% of MSRP. The sealed-product page also lists
+    // related single cards, accessories, and recommendations — anything well
+    // under MSRP is almost certainly noise from those sections, not a real
+    // sealed listing. (Sealed products almost never go below half MSRP, even
+    // on closeout.)
+    const msrp = getMsrp(product);
+    const priceFloor = msrp * 0.5;
+
+    const result = await page.evaluate((floor: number) => {
+      const body = document.body?.innerText ?? '';
+      const lc = body.toLowerCase();
+
+      // Stock: look for actual "Add to Cart" button, not just "listings" text
+      const outOfStock = lc.includes('no listings') || lc.includes('sold out');
+      const hasAddToCart = lc.includes('add to cart');
+      // "listings" alone just means single-card marketplace listings exist
+      const inStock = !outOfStock && hasAddToCart;
+
+      // Price: Market Price and Listed Median are the sealed product prices.
+      // TCGPlayer shows "Market Price $49.99" or "Market Price: $49.99"
+      let price: number | null = null;
+
+      const marketMatch = body.match(/Market Price[:\s]*\$([\d,]+\.\d{2})/i);
+      const medianMatch = body.match(/Listed Median[:\s]*\$([\d,]+\.\d{2})/i);
+      // Also try "Normal Market Price" variant
+      const normalMatch = body.match(/Normal\s+Market Price[:\s]*\$([\d,]+\.\d{2})/i);
+
+      if (marketMatch) {
+        price = parseFloat(marketMatch[1].replace(',', ''));
+      } else if (normalMatch) {
+        price = parseFloat(normalMatch[1].replace(',', ''));
+      } else if (medianMatch) {
+        price = parseFloat(medianMatch[1].replace(',', ''));
+      } else {
+        // Fallback: scan all $XX.XX in body and take the lowest plausible
+        // sealed listing — i.e. above the per-product floor passed in.
+        const all = body.match(/\$([\d,]+\.\d{2})/g) ?? [];
+        const candidates = all
+          .map(s => parseFloat(s.slice(1).replace(/,/g, '')))
+          .filter(p => Number.isFinite(p) && p >= floor);
+        if (candidates.length > 0) {
+          price = Math.min(...candidates);
+        }
+      }
+
+      return {inStock, price};
+    }, priceFloor);
+
+    // Belt-and-suspenders: even labeled prices below the floor are suspicious
+    // (would mean the labeled "Market Price" is for a single card on the page).
+    if (result.price != null && result.price < priceFloor) {
+      logger.debug(`[tcgplayer] ${product.canonicalName}: discarding $${result.price.toFixed(2)} below floor $${priceFloor.toFixed(2)} (MSRP $${msrp.toFixed(2)})`);
+      result.price = null;
+    }
+
+    logger.debug(`[tcgplayer] ${product.canonicalName}: inStock=${result.inStock}, price=${result.price}`);
+    return result;
+  } finally {
+    await page.close();
+  }
+}
 
 export const tcgplayer: Store = {
   name: 'tcgplayer',
-  strategy: 'puppeteer',
+  strategy: 'custom',
   supportsLocalStock: false,
   localStores: [],
   minSleep: config.pageSleepMin,
   maxSleep: config.pageSleepMax,
+  customCheck: checkTcgPlayer,
   labels: {
     container: 'body',
-    inStock: ['Add to Cart', 'Listings', '.add-to-cart__button:not([disabled])'],
+    inStock: ['Add to Cart', 'Listings'],
     outOfStock: ['Sold Out', 'Out of Stock', 'No Listings'],
-    price: '.price-point__data, .product-listing__price, .spotlight__price',
+    price: '.spotlight__price',
   },
   products: [
     // ── Prismatic Evolutions (SV8.5) ──

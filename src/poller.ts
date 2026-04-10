@@ -12,7 +12,7 @@ function getSleepTime(store: Store): number {
   return store.minSleep + Math.random() * (store.maxSleep - store.minSleep);
 }
 
-async function pollStore(
+export async function pollStore(
   store: Store,
   db: Db,
   browser: Browser | undefined,
@@ -58,6 +58,12 @@ async function pollStore(
 
     // ── Local store checks ────────────────────────────────────────────────
     if (store.supportsLocalStock && store.localStores.length > 0) {
+      // If the online check 404'd, customCheck stores would just re-hit the
+      // same dead URL once per local store and re-throw. Skip the whole local
+      // loop in that case.
+      if (store.customCheck && skipped404.has(product.url)) {
+        continue;
+      }
       for (const localStore of store.localStores) {
         try {
           let result;
@@ -146,28 +152,11 @@ export function startPolling(store: Store, db: Db, browser?: Browser): void {
 export function startSummaryPrinter(db: Db, intervalMs = 60000): void {
   async function printLoop(): Promise<void> {
     const rows = db.getBestPrices();
-    // Only show MSRP/retail hits prominently; 3P gets a condensed count
-    const retailRows = rows.filter(r => {
-      if (r.price == null) return true; // Show price-unknown in-stock items
-      const name = r.canonicalName.toLowerCase();
-      let msrp = 49.99;
-      if (name.includes('booster box') || name.includes('display')) msrp = 143.64;
-      else if (name.includes('bundle')) msrp = 26.99;
-      else if (name.includes('upc') || name.includes('ultra premium')) msrp = 119.99;
-      return r.price <= msrp * 1.2;
-    });
-    const scalperCount = rows.length - retailRows.length;
 
-    if (retailRows.length > 0) {
-      printSummary(retailRows);
-    }
-    if (scalperCount > 0) {
-      logger.info(`(${scalperCount} additional 3P/scalper listings hidden — set LOG_LEVEL=debug to see all)`);
-    }
-    if (retailRows.length === 0 && scalperCount === 0) {
+    if (rows.length > 0) {
+      printSummary(rows);
+    } else {
       logger.info('No in-stock items found.');
-    } else if (retailRows.length === 0 && scalperCount > 0) {
-      logger.info(`No retail-price stock found. ${scalperCount} 3P listings only.`);
     }
 
     setTimeout(printLoop, intervalMs);

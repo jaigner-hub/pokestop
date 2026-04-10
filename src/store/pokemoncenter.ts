@@ -1,17 +1,39 @@
-import type {Browser} from 'puppeteer';
 import type {Store, Product, CheckResult} from './model';
 import {config} from '../config';
 import {parsePrice} from '../price';
 import {logger} from '../logger';
+import {getBrowser} from '../browser';
 
-// Pokémon Center uses Next.js — product/stock data is embedded in __NEXT_DATA__
-async function checkPokemonCenterPuppeteer(product: Product, browser?: Browser): Promise<CheckResult> {
-  if (!browser) throw new Error('Browser required for pokemoncenter');
+// Pokémon Center uses Akamai WAF.  When connected to a real Chrome via debug
+// port, new tabs already share the browser's cookie jar, but we must NOT
+// override the real UA string — that mismatch is an easy fingerprint signal.
+// We also navigate to the homepage first if the page has no PC cookies yet,
+// so Akamai sees a warm session before we hit a product page.
+
+let pcCookiesWarmed = false;
+
+async function checkPokemonCenterPuppeteer(product: Product): Promise<CheckResult> {
+  const browser = await getBrowser();
   const page = await browser.newPage();
   try {
-    await page.setUserAgent(
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
-    );
+    // Do NOT call setUserAgent — let the real Chrome UA pass through.
+
+    // First-run: warm cookies by visiting the homepage so Akamai sets its
+    // bot-management cookies (_abck, bm_sz, etc.) before we hit product pages.
+    if (!pcCookiesWarmed) {
+      logger.info('[pokemoncenter] Warming cookies via homepage...');
+      try {
+        await page.goto('https://www.pokemoncenter.com/', {
+          waitUntil: 'networkidle2',
+          timeout: config.pageTimeout,
+        });
+        await new Promise(r => setTimeout(r, 2000 + Math.random() * 2000));
+        pcCookiesWarmed = true;
+        logger.info('[pokemoncenter] Cookies warmed.');
+      } catch (err) {
+        logger.warn(`[pokemoncenter] Homepage warm-up failed: ${err}`);
+      }
+    }
 
     let apiData: Record<string, unknown> | null = null;
 
@@ -30,7 +52,6 @@ async function checkPokemonCenterPuppeteer(product: Product, browser?: Browser):
             const json = await response.json();
             if (json && typeof json === 'object') {
               const str = JSON.stringify(json);
-              // Only capture if it looks like product data
               if (str.includes('availability') || str.includes('inStock') || str.includes('purchasable') || str.includes('addToCart')) {
                 apiData = json as Record<string, unknown>;
               }
@@ -45,7 +66,15 @@ async function checkPokemonCenterPuppeteer(product: Product, browser?: Browser):
       timeout: config.pageTimeout,
     });
 
-    await new Promise(r => setTimeout(r, 3000));
+    await new Promise(r => setTimeout(r, 2000 + Math.random() * 2000));
+
+    // Check if we got blocked
+    const bodyText = await page.evaluate(() => document.body?.innerText?.slice(0, 500) ?? '');
+    if (bodyText.includes('blocked by our security service') || bodyText.includes('Access Denied')) {
+      logger.warn(`[pokemoncenter] Blocked on ${product.canonicalName} — resetting cookie state for next cycle`);
+      pcCookiesWarmed = false;
+      return {inStock: false, price: null};
+    }
 
     // Try intercepted API data first
     if (apiData) {
